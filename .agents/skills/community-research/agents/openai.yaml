@@ -1,0 +1,4 @@
+interface:
+  display_name: "Community Research"
+  short_description: "Research Reddit and GitHub with traceable evidence"
+  default_prompt: "Use $community-research to research the relevant Reddit and GitHub sources, verify evidence, and report project-specific recommendations and access limitations."
