@@ -1,0 +1,4 @@
+interface:
+  display_name: "System Design Governance"
+  short_description: "Guide new system design before coding"
+  default_prompt: "Use $system-design-governance to design this new system from requirements through architecture, constraints, implementation plan, and verification."

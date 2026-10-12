@@ -1,0 +1,4 @@
+interface:
+  display_name: "DeepSeek Codex Native"
+  short_description: "Configure DeepSeek for Codex switching"
+  default_prompt: "Use $deepseek-codex-native to connect Codex to DeepSeek and create GPT/DeepSeek switch scripts."

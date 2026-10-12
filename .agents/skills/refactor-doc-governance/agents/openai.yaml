@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Doc Governance"
+  short_description: "Guide long-running refactor documentation"
+  default_prompt: "Use $refactor-doc-governance to guide this refactor, follow the project docs, and update records by document responsibility."
