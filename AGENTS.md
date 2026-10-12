@@ -62,6 +62,7 @@ Project-local skills live in `.agents/skills/`. Read the actual instructions rat
 | Code implementation, fixes, or optimization using the lead/worker workflow | `sol-luna-dev`, following its worker contract and supported runner capabilities |
 | Source-backed explanation of a technical flow | `technical-flow-teacher` |
 | Explicit DeepSeek provider setup or switching | `deepseek-codex-native` |
+| Reddit/GitHub research and evidence-based project reviews | `community-research` |
 
 Use [majidmanzarpour/threejs-game-skills](https://github.com/majidmanzarpour/threejs-game-skills) as the Three.js game development guidance. For broad game work, start with `threejs-game-director`; it routes to gameplay, graphics, UI, debugging, and QA specialists as needed. For narrow tasks, load only the relevant guidance.
 

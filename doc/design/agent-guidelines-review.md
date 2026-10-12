@@ -36,4 +36,4 @@ Reddit research was attempted through `www.reddit.com` for r/threejs game/perfor
 - Kept changes limited to project guidance and this review record; existing design and skill files are unchanged.
 - The repository still has no application manifest, source, or test suite. Proposed commands and checks are future implementation requirements, not verified runtime capabilities.
 - The external Three.js skill package is not installed in `.agents/skills/`; upstream files were consulted as research references.
-- Reddit research remains blocked by Reddit's access policy after the environment domain changes were published and requests retried. The original proxy connection rejection has been resolved; no discussion content is available for review.
+- Direct Reddit reads remain blocked after the environment domain changes were published and requests retried. Later Tavily tests supplied short Reddit excerpts, but original-post extraction failed in both Tavily and Exa. Complete post/comment review remains outstanding; see the [provider tests](../research/community-search-provider-test.md) and [desktop handoff](../research/README.md).
