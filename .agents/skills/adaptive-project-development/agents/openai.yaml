@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adaptive Project Development"
+  short_description: "Scale project workflows from PRD through reviewed implementation"
+  default_prompt: "Use $adaptive-project-development to classify this change, create only the required development artifacts, and carry it through implementation and review."
