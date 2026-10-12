@@ -53,3 +53,9 @@ Repeated only checks needed after these relevant fixes. Screenshots supported vi
 The JavaScript bundle is approximately 510 kB minified / 131 kB gzip, primarily Three.js, and Vite reports its 500 kB advisory warning. No arbitrary warning threshold was raised. Headless results do not imply a universal frame rate or tested hardware performance. Runtime uses self-authored primitive geometry and an SVG icon; no external asset licensing or generation jobs are involved.
 
 Ask the player: Can you read light/heavy intent? Does the four-second window create useful pressure? Is saving two AP for Counter understandable? Does the counter phase interrupt too often? These answers should drive balance/hand-model changes rather than treating this experiment's defaults as permanent design.
+
+## Rear battle-camera update
+
+On 2026-10-12, changed fixed framing to a Pokémon-style diagonal view from behind the player. The near player's back occupies the lower-left foreground; the far opponent's front remains visible above and to the right. Fighter positions, facings and world-axis attack animations are unchanged. Impact shake is added relative to the new camera home instead of resetting its X position.
+
+Typecheck and production build passed. A focused Playwright browser check against the built preview used real start/card/submit/restart input, captured planning at 1280×800 and 1600×1000 plus Heavy Strike in motion, and reported no console/page errors or horizontal overflow. The three captures were visually inspected for actor facing, occlusion, framing and HUD placement. Gameplay-rule tests were not repeated because the change touches only rendering and requirement/design documentation. Local screenshot evidence is stored under `/tmp/actiondbg-rear-*.png` and is not committed. Hosted deployment of this update is not yet verified.

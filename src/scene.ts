@@ -3,6 +3,9 @@ import type { CombatSnapshot } from './combat';
 
 type Fighter = { root: THREE.Group; torso: THREE.Group; sword: THREE.Group; leftArm: THREE.Group; rightArm: THREE.Group; shield: THREE.Group; color: THREE.Color };
 
+const CAMERA_HOME = new THREE.Vector3(-8, 4.2, 8);
+const CAMERA_TARGET = new THREE.Vector3(0.4, 1.4, 0);
+
 /** Procedural duel presentation. The simulation owns all outcomes; this class only animates snapshots. */
 export class Arena {
   private readonly renderer: THREE.WebGLRenderer;
@@ -25,8 +28,8 @@ export class Arena {
     this.scene.background = new THREE.Color('#18292c');
     this.scene.fog = new THREE.Fog('#18292c', 13, 32);
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.1, 60);
-    this.camera.position.set(0, 5.8, 15.4);
-    this.camera.lookAt(0, 1.5, 0);
+    this.camera.position.copy(CAMERA_HOME);
+    this.camera.lookAt(CAMERA_TARGET);
 
     this.scene.add(new THREE.HemisphereLight('#fff0d4', '#51433d', 2.25));
     const sun = new THREE.DirectionalLight('#ffe3af', 4.1);
@@ -190,8 +193,9 @@ export class Arena {
     const impact = snapshot.phase === 'resolve' ? Math.max(0, 1 - snapshot.phaseElapsed * 2.5) : 0;
     this.hitLight.intensity = impact * (snapshot.guard > 0 ? 1.3 : 3.5);
     const shake = impact * 0.035;
-    this.camera.position.x = Math.sin(t * 49) * shake;
-    this.camera.lookAt(0, 1.5, 0);
+    this.camera.position.copy(CAMERA_HOME);
+    this.camera.position.x += Math.sin(t * 49) * shake;
+    this.camera.lookAt(CAMERA_TARGET);
     // Subtle time-scale indicator in the arena light and a slow-moving pennant-like pulse.
     this.renderer.render(this.scene, this.camera);
   }
