@@ -57,7 +57,8 @@ Project-local skills live in `.agents/skills/`. Read the actual instructions rat
 
 | Task | Guidance |
 | --- | --- |
-| New gameplay system or substantial feature design | `system-design-governance` |
+| End-to-end feature or gameplay-system development with complexity-scaled documents and review gates | `adaptive-project-development` |
+| Design-only architecture work without implementation orchestration | `system-design-governance` |
 | Long-running implementation, migration, or documentation maintenance | `refactor-doc-governance` |
 | Code implementation, fixes, or optimization using the lead/worker workflow | `sol-luna-dev`, following its worker contract and supported runner capabilities |
 | Source-backed explanation of a technical flow | `technical-flow-teacher` |
