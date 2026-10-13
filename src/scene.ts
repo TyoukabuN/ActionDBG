@@ -510,6 +510,13 @@ export class Arena {
     const cameraPose = this.cameraDirector.update(snapshot, delta, this.reducedMotion.matches);
     const shake = this.reducedMotion.matches ? 0 : this.shakeStrength * this.shakeEnvelope();
     this.camera.position.set(...cameraPose.position);
+    // Portrait framing pulls back along the authored view axis so both fighters
+    // remain readable without changing the cinematic shot or combat direction.
+    const portraitScale = Math.max(1, Math.min(1.85, 1 / this.camera.aspect));
+    if (portraitScale > 1) {
+      this.cameraLookTarget.set(...cameraPose.target);
+      this.camera.position.sub(this.cameraLookTarget).multiplyScalar(portraitScale).add(this.cameraLookTarget);
+    }
     this.camera.position.x += Math.sin(t * 49) * shake;
     this.cameraLookTarget.set(...cameraPose.target);
     this.camera.lookAt(this.cameraLookTarget);
@@ -561,7 +568,7 @@ export class Arena {
       this.playerRecoveryCard = previous.activeCard;
     }
     if (enemyLoss > 0) {
-      this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `PARRY  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
+      this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `反击  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
       this.blood.trigger(new THREE.Vector3(this.enemy.root.position.x - 0.28, 1.38, this.enemy.root.position.z + 0.28), -1);
     }
     if (playerLoss > 0) {
@@ -573,7 +580,7 @@ export class Arena {
       && previous.guard > 0 && !counterWasResolved;
     if (playerLoss > 0 || guardConsumed) this.enemyAttackRecovery = 0.18;
     if (guardConsumed && playerLoss === 0) {
-      this.showFeedback(this.playerDamageLabel, 'BLOCK', '#a9eee0', this.player.root.position.x, this.player.root.position.z);
+      this.showFeedback(this.playerDamageLabel, '格挡', '#a9eee0', this.player.root.position.x, this.player.root.position.z);
       this.ringRemaining = 0.24;
       this.contactRing.position.set(-0.55, 1.18, 0.3);
       this.contactRing.material.color.set('#88e2d3');

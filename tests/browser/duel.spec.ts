@@ -26,10 +26,10 @@ test('history disclosure preserves keyboard control and queued costs show AP res
   await phase(page, 'planning');
   await page.keyboard.press('2');
   await expect(page.getByTestId('ap')).toHaveText('1');
-  await expect(page.locator('#ap-reserved')).toHaveText('2 reserved');
+  await expect(page.locator('#ap-reserved')).toHaveText('预留 2 点');
   await page.keyboard.press('2');
   await expect(page.getByTestId('ap')).toHaveText('3');
-  await expect(page.locator('#ap-reserved')).toHaveText('0 reserved');
+  await expect(page.locator('#ap-reserved')).toHaveText('预留 0 点');
   await page.keyboard.press('3');
   await page.keyboard.press('Enter');
   await page.clock.runFor(600);
@@ -38,7 +38,7 @@ test('history disclosure preserves keyboard control and queued costs show AP res
   await page.clock.runFor(700);
   await expect(page.getByTestId('canvas')).toHaveAttribute('data-spark-particles', '14');
   await expect(page.locator('#round')).toHaveText('02');
-  await expect(page.locator('#outcome')).toContainText('0 damage taken');
+  await expect(page.locator('#outcome')).toContainText('未受伤');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
 });
 
@@ -51,7 +51,7 @@ test('real keyboard cards share AP with Counter and cancel the incoming hit', as
   await page.getByTestId('start').click();
   await phase(page, 'planning');
   await page.keyboard.press('1');
-  await expect(page.getByTestId('queue')).toContainText('Quick Strike');
+  await expect(page.getByTestId('queue')).toContainText('快斩');
   await page.keyboard.press('Enter');
   await phase(page, 'counter');
   await expect(page.getByTestId('ap')).toHaveText('2');
@@ -59,9 +59,9 @@ test('real keyboard cards share AP with Counter and cancel the incoming hit', as
   await page.keyboard.press('Enter');
   await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
-  await expect(page.locator('#log')).toContainText(/cancel/i);
+  await expect(page.locator('#log')).toContainText(/取消/);
   await expect(page.locator('#round')).toHaveText('02');
-  await expect(page.getByTestId('card-counter')).toContainText(/cooldown/i);
+  await expect(page.getByTestId('card-counter')).toContainText(/冷却/);
   await expect(page.locator('#webgl-error')).toBeHidden();
   expect(errors).toEqual([]);
 });
@@ -74,13 +74,13 @@ test('expiry submits ordered mouse queue, cooldown blocks next round, and five r
   await page.getByTestId('card-heavy').click();
   await page.getByTestId('card-quick').click();
   await expect(page.getByTestId('card-guard')).toBeDisabled();
-  await expect(page.getByTestId('queue')).toContainText('Heavy Strike');
+  await expect(page.getByTestId('queue')).toContainText('重斩');
   await expect(page.locator('#round')).toHaveText('02');
   await expect(page.locator('#enemy-hp')).toHaveText('8 / 12');
   await expect(page.locator('#player-hp')).toHaveText('8 / 10');
   await phase(page, 'planning');
   await expect(page.getByTestId('card-heavy')).toBeDisabled();
-  await expect(page.getByTestId('card-heavy')).toContainText(/cooldown/i);
+  await expect(page.getByTestId('card-heavy')).toContainText(/冷却/);
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press('r');
     await phase(page, 'telegraph');
@@ -101,7 +101,7 @@ test('blur freezes countdown and input; canvas and HUD fit a smaller desktop', a
   await page.waitForTimeout(600);
   expect(await page.getByTestId('timer').textContent()).toBe(before);
   await page.keyboard.press('1');
-  await expect(page.getByTestId('queue')).not.toContainText('Quick Strike');
+  await expect(page.getByTestId('queue')).not.toContainText('快斩');
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await expect(page.locator('#pause-banner')).toBeHidden();
   // Exercise the visibility event adapter without exposing gameplay test hooks.
@@ -175,7 +175,7 @@ async function openQte(page: Page) {
   await page.clock.install({ time: now });
   await page.clock.pauseAt(now);
   await page.goto('./');
-  await expect(page.getByTestId('control-mode')).toHaveText('Cinematic QTE');
+  await expect(page.getByTestId('control-mode')).toHaveText('演出式出牌');
   await page.getByTestId('start').click();
   await page.clock.runFor(1300);
   await phase(page, 'planning');
@@ -207,8 +207,8 @@ test('QTE buttons play directly, resume time, and keyboard counter changes the c
   await phase(page, 'counter');
   const enemyCard = page.getByTestId('counter-threat-card');
   await expect(enemyCard).toBeVisible();
-  await expect(enemyCard).toContainText('Light Attack');
-  await expect(enemyCard).toContainText('2 DAMAGE');
+  await expect(enemyCard).toContainText('轻攻击');
+  await expect(enemyCard).toContainText('2 点伤害');
   await expect(enemyCard).toHaveAttribute('aria-hidden', 'false');
   await page.clock.runFor(400);
   await expect(canvas).toHaveAttribute('data-shot', 'counter-window');
@@ -262,8 +262,8 @@ test('QTE native keyboard buttons and heavy/guard shots respect pause and expiry
   await phase(page, 'planning');
   await page.clock.runFor(4100);
   await phase(page, 'counter');
-  await expect(page.getByTestId('counter-threat-card')).toContainText('Heavy Attack');
-  await expect(page.getByTestId('counter-threat-card')).toContainText('4 DAMAGE');
+  await expect(page.getByTestId('counter-threat-card')).toContainText('重攻击');
+  await expect(page.getByTestId('counter-threat-card')).toContainText('4 点伤害');
   await page.clock.runFor(2700);
   await expect(page.locator('#round')).toHaveText('03');
   await expect(page.locator('#player-hp')).toHaveText('6 / 10');
@@ -279,4 +279,30 @@ test('reduced motion keeps a stable QTE overview', async ({ page }) => {
   await phase(page, 'acting');
   await expect(canvas).toHaveAttribute('data-shot', 'overview');
   expect(await canvas.getAttribute('data-camera-position')).toBe(position);
+});
+
+test('Chinese portrait UI supports touch card play, counter and restart', async ({ browser }) => {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await openQte(page);
+  await expect(page.getByTestId('card-quick')).toContainText('快斩');
+  await page.getByTestId('card-quick').tap();
+  await page.clock.runFor(650);
+  await page.getByTestId('submit').tap();
+  await page.clock.runFor(450);
+  await phase(page, 'counter');
+  await expect(page.getByTestId('counter-threat-card')).toContainText('轻攻击');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+  const action = await page.getByTestId('submit').boundingBox();
+  expect(action!.height).toBeGreaterThanOrEqual(44);
+  expect(action!.y + action!.height).toBeLessThanOrEqual(844);
+  await page.getByTestId('card-counter').tap();
+  await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
+  await page.clock.runFor(750);
+  await page.getByTestId('restart').tap();
+  await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
+  expect(errors).toEqual([]);
+  await context.close();
 });

@@ -43,3 +43,11 @@ The production build and all 25 unit tests pass. Focused production-browser cove
 | AC-05 lifecycle/comparison | PASS | Pause freezes camera/decision timer, reduced-motion stable overview, reset tests and all five original browser scenarios explicitly choose queue mode |
 
 Local artifacts are `/tmp/actiondbg-cinematic-20261013-final/manifest.json`, associated screenshots, `motion-000.jpg` through `motion-082.jpg`, `motion-sheet.jpg`, and `large-layout-check.json` / `large-decision-checked.png`. They are temporary, uncommitted evidence. Earlier captures with the HUD overlap are not the accepted large-screen view. Screenshot baselines remain deferred because there is no human-approved composition baseline; behavioral tests plus real-input motion are used for this experiment. No hardware FPS guarantee is claimed; the later VFX revision records renderer counts for its multi-pass composition.
+
+## Chinese UI and portrait touch play (2026-10-13)
+
+Translated visible HUD/menu/card/shot/outcome text, tooltips, accessibility labels, canvas impact labels and displayed combat history to Simplified Chinese. `src/chinese.ts` maps presentation text without changing the simulation event format or gameplay rules. The document language and page metadata are Chinese; the ActionDBG product name and keyboard key R remain unchanged.
+
+Portrait layout uses two-column cards, safe-area padding, 44px primary touch targets, compact enemy-card/HUD placement and a view-axis camera pullback for narrow aspect ratios. Real touch emulation at 360×844 and 390×844 exercised Quick, continue, Counter and restart without page errors or horizontal overflow. The primary submit button remained within the 844px viewport. Screenshots `/tmp/actiondbg-zh-360.png` and `/tmp/actiondbg-zh-390.png` were inspected for character visibility and text fit. Shorter screens may scroll naturally. This is browser touch emulation rather than verification on physical phones.
+
+All 25 existing unit tests and the production build pass. The desktop direct-QTE browser regression and a new Chinese portrait touch-flow scenario validate the translated labels and shared input adapter. Existing browser expectations were updated for the Chinese presentation.

@@ -1,6 +1,7 @@
 import { CARDS, Combat, type CardId, type CombatSnapshot } from './combat';
 import { Arena } from './scene';
 import './style.css';
+import { chineseText, CARD_NAMES, CARD_DESCRIPTIONS, SHOT_NAMES } from './chinese';
 
 const root = document.querySelector<HTMLElement>('#app');
 if (!root) throw new Error('Missing #app mount point');
@@ -10,63 +11,63 @@ root.innerHTML = `
   <main class="game-shell">
     <header class="masthead">
       <a class="brand" href="#" aria-label="ActionDBG"><span class="brand-mark">A</span><span>ACTIONDBG</span></a>
-      <div class="arena-name"><span class="arena-mark">◆</span> THE SUNKEN ARENA</div>
-      <div class="header-controls"><button class="icon-button" id="control-mode" data-testid="control-mode" type="button" title="Switch control mode before starting">Cinematic QTE</button><button class="icon-button" id="restart" data-testid="restart" aria-label="Restart duel" title="Restart duel (R)"><span class="reset-icon">↻</span><span>RESTART</span></button></div>
+      <div class="arena-name"><span class="arena-mark">◆</span> 沉没竞技场</div>
+      <div class="header-controls"><button class="icon-button" id="control-mode" data-testid="control-mode" type="button" title="开始前切换操作模式">演出式出牌</button><button class="icon-button" id="restart" data-testid="restart" aria-label="重新开始对决" title="重新开始（R）"><span class="reset-icon">↻</span><span>重新开始</span></button></div>
     </header>
 
-    <section class="arena-layout" aria-label="Combat arena">
+    <section class="arena-layout" aria-label="战斗竞技场">
       <div class="scene-frame">
-        <canvas id="canvas" data-testid="canvas" aria-label="Three-dimensional sword duel"></canvas>
+        <canvas id="canvas" data-testid="canvas" aria-label="三维剑术对决"></canvas>
         <div class="scene-shade"></div>
-        <div class="scene-topline"><span class="live-dot"></span><span>THE DUEL</span><span class="shot-name" id="shot-name">ESTABLISHING</span><span class="round-chip">ROUND <b id="round">01</b></span></div>
+        <div class="scene-topline"><span class="live-dot"></span><span>对决</span><span class="shot-name" id="shot-name">开场镜头</span><span class="round-chip">回合 <b id="round">01</b></span></div>
         <div class="fighters-hud">
           <div class="fighter-card player-card">
-            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>CHALLENGER</b><small>Warden of the Coast</small></div></div>
-            <div class="hp-line"><span>HP</span><strong id="player-hp">10 / 10</strong></div><div class="hp-track"><i id="player-bar"></i></div>
+            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>挑战者</b><small>海岸守卫</small></div></div>
+            <div class="hp-line"><span>生命</span><strong id="player-hp">10 / 10</strong></div><div class="hp-track"><i id="player-bar"></i></div>
           </div>
-          <div class="intent-card" id="intent-card"><span class="intent-label">ENEMY INTENT</span><b id="intent">Awaiting challenger</b><small id="intent-detail">Enter the arena to begin</small></div>
+          <div class="intent-card" id="intent-card"><span class="intent-label">敌方意图</span><b id="intent">等待挑战者</b><small id="intent-detail">进入竞技场开始战斗</small></div>
           <div class="fighter-card enemy-card">
-            <div class="fighter-id"><span class="enemy-sigil">◆</span><div><b>THE DUELIST</b><small>Veteran of the Red Gate</small></div></div>
-            <div class="hp-line"><span>HP</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
+            <div class="fighter-id"><span class="enemy-sigil">◆</span><div><b>决斗者</b><small>赤门老兵</small></div></div>
+            <div class="hp-line"><span>生命</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
           </div>
         </div>
         <aside class="counter-threat-card" id="counter-threat-card" data-testid="counter-threat-card" aria-live="polite" aria-hidden="true">
           <span class="threat-speed-lines" aria-hidden="true"></span>
-          <div class="threat-card-heading"><span>ENEMY CARD</span><b id="threat-card-number">01</b></div>
+          <div class="threat-card-heading"><span>敌方出牌</span><b id="threat-card-number">01</b></div>
           <div class="threat-card-art" aria-hidden="true"><i></i><span>斬</span></div>
-          <div class="threat-card-copy"><small>INCOMING</small><strong id="threat-card-name">Light Attack</strong><span id="threat-card-damage">2 DAMAGE</span></div>
+          <div class="threat-card-copy"><small>即将发动</small><strong id="threat-card-name">轻攻击</strong><span id="threat-card-damage">2 点伤害</span></div>
         </aside>
         <div class="stage-status" id="stage-status">
-          <div class="phase-heading"><span class="stage-dot"></span><span id="phase" data-testid="phase">READY</span><span id="phase-copy">A duel awaits</span></div>
-          <div class="timer-row"><div class="timer-track"><i id="timer-progress"></i></div><div class="timer-readout"><span id="outcome" class="outcome" aria-live="polite">Read the opening move</span><b class="timer" id="timer" data-testid="timer">—</b></div></div>
+          <div class="phase-heading"><span class="stage-dot"></span><span id="phase" data-testid="phase">准备就绪</span><span id="phase-copy">等待对决开始</span></div>
+          <div class="timer-row"><div class="timer-track"><i id="timer-progress"></i></div><div class="timer-readout"><span id="outcome" class="outcome" aria-live="polite">观察敌人的起手</span><b class="timer" id="timer" data-testid="timer">—</b></div></div>
         </div>
         <div class="overlay" id="overlay" aria-live="polite">
-          <div class="overlay-kicker"><span class="ornament">✦</span> THE SUNKEN ARENA <span class="ornament">✦</span></div>
-          <h1 id="overlay-title">Face the duelist</h1>
-          <p id="overlay-copy">Watch the wind-up. Press a technique to act immediately. Keep two action points ready to counter.</p>
-          <button class="primary-button" id="start" data-testid="start"><span>Enter the arena</span><b>↗</b></button>
-          <div class="key-hint">PRESS <kbd>ENTER</kbd> TO BEGIN</div>
+          <div class="overlay-kicker"><span class="ornament">✦</span> 沉没竞技场 <span class="ornament">✦</span></div>
+          <h1 id="overlay-title">迎战决斗者</h1>
+          <p id="overlay-copy">观察敌人的前摇，按下招式立即出牌。保留 2 点行动点用于反击。</p>
+          <button class="primary-button" id="start" data-testid="start"><span>进入竞技场</span><b>↗</b></button>
+          <div class="key-hint">按 <kbd>回车</kbd> 开始</div>
         </div>
-        <div class="pause-banner" id="pause-banner" hidden><b>DUEL PAUSED</b><span>Return to this tab to continue</span></div>
-        <div class="webgl-error" id="webgl-error" hidden role="alert"><b>The arena could not be drawn.</b><span>Your browser may not support WebGL. Try enabling hardware acceleration.</span></div>
+        <div class="pause-banner" id="pause-banner" hidden><b>对决已暂停</b><span>返回此页面继续战斗</span></div>
+        <div class="webgl-error" id="webgl-error" hidden role="alert"><b>无法绘制竞技场。</b><span>浏览器可能不支持 WebGL，请尝试启用硬件加速。</span></div>
       </div>
-      <div class="combat-strip" aria-label="Action point budget and queue">
-        <div class="ap-cluster"><span class="ap-symbol">✦</span><div class="ap-numbers"><span class="ap-label">ACTION POINTS</span><div><b id="ap" data-testid="ap">3</b><span class="ap-divider">/</span><span id="ap-max">3</span><span class="ap-available-label">AVAILABLE</span></div></div><div class="ap-pips" id="ap-pips"></div><span class="reserved-readout" id="ap-reserved">0 reserved</span></div>
-        <div class="queue-cluster"><div class="queue-title"><span id="sequence-label">NEXT RESPONSE</span><span class="queue-count" id="queue-count">0</span></div><ol class="queue-list" id="queue" data-testid="queue"><li class="empty-queue">Select a technique below</li></ol></div>
+      <div class="combat-strip" aria-label="行动点与出牌序列">
+        <div class="ap-cluster"><span class="ap-symbol">✦</span><div class="ap-numbers"><span class="ap-label">行动点</span><div><b id="ap" data-testid="ap">3</b><span class="ap-divider">/</span><span id="ap-max">3</span><span class="ap-available-label">可用</span></div></div><div class="ap-pips" id="ap-pips"></div><span class="reserved-readout" id="ap-reserved">预留 0 点</span></div>
+        <div class="queue-cluster"><div class="queue-title"><span id="sequence-label">下一步应对</span><span class="queue-count" id="queue-count">0</span></div><ol class="queue-list" id="queue" data-testid="queue"><li class="empty-queue">选择下方招式</li></ol></div>
       </div>
 
       <details class="history-panel" id="history-panel">
-        <summary><span class="history-icon">▤</span><span>DUEL HISTORY</span><span class="history-summary" id="history-summary">No actions resolved</span><span class="history-chevron">⌄</span></summary>
-        <div class="history-content"><div><h2>Last outcomes</h2><ol class="result-list" id="result" data-testid="result"><li class="empty-result">No actions resolved yet</li></ol></div><div><h2>Combat log</h2><div class="combat-log" id="log" aria-live="polite"><p class="log-empty">The first move is yours.</p></div></div></div>
+        <summary><span class="history-icon">▤</span><span>战斗记录</span><span class="history-summary" id="history-summary">尚无战斗结果</span><span class="history-chevron">⌄</span></summary>
+        <div class="history-content"><div><h2>最近结果</h2><ol class="result-list" id="result" data-testid="result"><li class="empty-result">尚未结算招式</li></ol></div><div><h2>战斗日志</h2><div class="combat-log" id="log" aria-live="polite"><p class="log-empty">由你决定如何应对。</p></div></div></div>
       </details>
     </section>
 
     <footer class="card-desk">
-      <div class="desk-label"><div><span class="eyebrow">CHOOSE YOUR TECHNIQUE</span><small id="desk-hint">Press a button or 1–4 to play immediately</small></div><span class="round-number" id="round-rail">01</span></div>
+      <div class="desk-label"><div><span class="eyebrow">选择招式</span><small id="desk-hint">点击按钮或按 1–4 立即出牌</small></div><span class="round-number" id="round-rail">01</span></div>
       <div class="cards" id="cards"></div>
-      <div class="desk-actions"><button id="skip" data-testid="skip" class="text-button" disabled>Skip <kbd>SPACE</kbd></button><button id="submit" data-testid="submit" class="submit-button" disabled><span>Commit actions</span><b>↗</b><kbd>ENTER</kbd></button></div>
+      <div class="desk-actions"><button id="skip" data-testid="skip" class="text-button" disabled>跳过 <kbd>空格</kbd></button><button id="submit" data-testid="submit" class="submit-button" disabled><span>执行出牌</span><b>↗</b><kbd>ENTER</kbd></button></div>
     </footer>
-    <div class="footer-note"><span>Read the wind-up · Keep 2 AP for Counter</span><span id="controls-help"><kbd>1–4</kbd> play <kbd>ENTER</kbd> continue <kbd>SPACE</kbd> pass <kbd>R</kbd> restart</span></div>
+    <div class="footer-note"><span>观察前摇 · 保留 2 点行动点用于反击</span><span id="controls-help"><kbd>1–4</kbd> 出牌 <kbd>回车</kbd> 继续 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开</span></div>
   </main>`;
 
 const $ = <T extends HTMLElement>(selector: string) => {
@@ -88,7 +89,7 @@ let lastOutcomeLine = '';
 const heldKeys = new Set<string>();
 const STEP = 1 / 60;
 const MAX_STEPS = 6;
-const labels: Record<string, string> = { ready: 'READY', telegraph: 'TELEGRAPH', planning: 'PLAN YOUR TURN', acting: 'ACTIONS IN MOTION', counter: 'COUNTER WINDOW', resolve: 'STRIKE RESOLVED', victory: 'VICTORY', defeat: 'DEFEAT' };
+const labels: Record<string, string> = { ready: '准备就绪', telegraph: '敌方前摇', planning: '选择出牌', acting: '招式演出', counter: '反击时机', resolve: '攻击结算', victory: '胜利', defeat: '失败' };
 const ids: CardId[] = ['quick', 'heavy', 'guard', 'counter'];
 const cardIcons: Record<CardId, string> = {
   quick: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 36 34 13m-5 1 5-1-1 5M9 29l10 10m-5-14 10 10M30 10l8 8"/><path d="m8 40 4-1-3-3z"/></svg>',
@@ -105,8 +106,8 @@ for (const card of CARDS) {
   button.id = `card-${card.id}`;
   button.dataset.testid = `card-${card.id}`;
   button.type = 'button';
-  button.setAttribute('aria-label', `${index + 1}. ${card.name}, costs ${card.cost} action ${card.cost === 1 ? 'point' : 'points'}. ${card.description}`);
-  button.innerHTML = `<span class="card-top"><span class="card-index">${index + 1}</span><span class="card-cost"><b>${card.cost}</b><small>AP</small></span></span><span class="card-art ${card.id}-art">${cardIcons[card.id]}</span><span class="card-name">${card.name}</span><span class="card-desc">${card.description}</span><span class="card-status" id="status-${card.id}">Available</span>`;
+  button.setAttribute('aria-label', `${index + 1}. ${CARD_NAMES[card.id]}, 消耗 ${card.cost} 点行动点。 ${CARD_DESCRIPTIONS[card.id]}`);
+  button.innerHTML = `<span class="card-top"><span class="card-index">${index + 1}</span><span class="card-cost"><b>${card.cost}</b><small>行动点</small></span></span><span class="card-art ${card.id}-art">${cardIcons[card.id]}</span><span class="card-name">${CARD_NAMES[card.id]}</span><span class="card-desc">${CARD_DESCRIPTIONS[card.id]}</span><span class="card-status" id="status-${card.id}">可用</span>`;
   button.addEventListener('click', () => activateCard(card.id), { signal: inputEvents.signal });
   cardHost.append(button);
 }
@@ -132,22 +133,22 @@ $('#control-mode').addEventListener('click', () => {
   combat = new Combat(snapshot.controlMode === 'qte' ? 'queue' : 'qte');
   lastTime = null; accumulator = 0; heldKeys.clear(); lastHudKey = ''; lastOutcomeLine = '\u0000';
   $('#overlay').classList.remove('overlay-hidden');
-  $('#overlay-title').textContent = 'Face the duelist';
-  $('#start').innerHTML = '<span>Enter the arena</span><b>↗</b>';
-  $('#overlay .key-hint').innerHTML = 'PRESS <kbd>ENTER</kbd> TO BEGIN';
+  $('#overlay-title').textContent = '迎战决斗者';
+  $('#start').innerHTML = '<span>进入竞技场</span><b>↗</b>';
+  $('#overlay .key-hint').innerHTML = '按 <kbd>回车</kbd> 开始';
   render(combat.snapshot());
 }, { signal: inputEvents.signal });
 function hideOverlay() { $('#overlay').classList.add('overlay-hidden'); }
 function showTerminal(win: boolean) {
   $('#overlay').classList.remove('overlay-hidden');
-  $('#overlay-title').textContent = win ? 'Duel won' : 'Duel lost';
-  $('#overlay-copy').textContent = win ? 'Your timing was true. The Red Gate will remember this duel.' : 'The duel is over. Study the intent, keep a point for your guard, and try again.';
-  const button = $('#start'); button.dataset.testid = 'start'; button.innerHTML = '<span>Fight again</span><b>↗</b>';
-  $('#overlay .key-hint').innerHTML = 'PRESS <kbd>R</kbd> TO BEGIN AGAIN';
+  $('#overlay-title').textContent = win ? '对决胜利' : '对决失败';
+  $('#overlay-copy').textContent = win ? '你把握住了时机，赤门将铭记这场对决。' : '对决结束。观察敌方意图，保留行动点用于格挡，再试一次。';
+  const button = $('#start'); button.dataset.testid = 'start'; button.innerHTML = '<span>再次挑战</span><b>↗</b>';
+  $('#overlay .key-hint').innerHTML = '按 <kbd>R</kbd> 重新开始';
 }
 function drawArena(snapshot: CombatSnapshot, realSeconds: number) {
   arena?.render(snapshot, realSeconds);
-  const label = ($('#canvas').dataset.shot ?? 'overview').replaceAll('-', ' ').toUpperCase();
+  const label = SHOT_NAMES[$('#canvas').dataset.shot ?? 'overview'] ?? '战斗镜头';
   if ($('#shot-name').textContent !== label) $('#shot-name').textContent = label;
 }
 function render(snapshot: CombatSnapshot, realSeconds = 0) {
@@ -168,24 +169,24 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#enemy-bar').style.width = `${Math.max(0, snapshot.enemyHp / enemyMax * 100)}%`;
   $('#ap').textContent = String(snapshot.ap); $('#ap-max').textContent = String(snapshot.maxAp);
   $('#round').textContent = String(snapshot.round).padStart(2, '0'); $('#round-rail').textContent = String(snapshot.round).padStart(2, '0');
-  $('#phase').textContent = qte && snapshot.phase === 'planning' ? 'CHOOSE YOUR RESPONSE' : labels[snapshot.phase] ?? snapshot.phase.toUpperCase();
-  $('#control-mode').textContent = qte ? 'Cinematic QTE' : 'Queue planning';
+  $('#phase').textContent = qte && snapshot.phase === 'planning' ? '选择应对招式' : labels[snapshot.phase] ?? snapshot.phase.toUpperCase();
+  $('#control-mode').textContent = qte ? '演出式出牌' : '序列出牌';
   $('#control-mode').toggleAttribute('disabled', !['ready', 'victory', 'defeat'].includes(snapshot.phase) || snapshot.paused);
-  $('#sequence-label').textContent = qte ? 'NEXT RESPONSE' : 'YOUR SEQUENCE';
-  $('#desk-hint').textContent = qte ? 'Press a button or 1–4 to play immediately' : 'Costs are reserved as you queue';
-  $('#controls-help').innerHTML = qte ? '<kbd>1–4</kbd> play <kbd>ENTER</kbd> continue <kbd>SPACE</kbd> pass <kbd>R</kbd> restart' : '<kbd>1–4</kbd> select <kbd>ENTER</kbd> commit <kbd>SPACE</kbd> skip <kbd>R</kbd> restart';
-  if (snapshot.phase === 'ready') $('#overlay-copy').textContent = qte ? 'Watch the wind-up. Press a technique to act immediately. Keep two action points ready to counter.' : 'Read the wind-up. Queue your techniques, then commit the sequence.';
+  $('#sequence-label').textContent = qte ? '下一步应对' : '你的出牌序列';
+  $('#desk-hint').textContent = qte ? '点击按钮或按 1–4 立即出牌' : '选牌时预留行动点';
+  $('#controls-help').innerHTML = qte ? '<kbd>1–4</kbd> 出牌 <kbd>回车</kbd> 继续 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开' : '<kbd>1–4</kbd> 选牌 <kbd>回车</kbd> 执行 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开';
+  if (snapshot.phase === 'ready') $('#overlay-copy').textContent = qte ? '观察敌人的前摇，按下招式立即出牌。保留 2 点行动点用于反击。' : '观察前摇，将招式加入序列后执行。';
   $('#phase').dataset.phase = snapshot.phase;
-  $('#phase-copy').textContent = snapshot.paused ? 'Paused while away' : phaseCopy(snapshot);
+  $('#phase-copy').textContent = snapshot.paused ? '离开页面，已暂停' : phaseCopy(snapshot);
   $('#timer').textContent = snapshot.remaining > 0 ? snapshot.remaining.toFixed(1) : snapshot.phase === 'ready' ? '—' : '0.0';
   $('#timer').classList.toggle('timer-urgent', snapshot.remaining > 0 && snapshot.remaining < 1.25);
   const windowLength = snapshot.phase === 'planning' ? 4 : snapshot.phase === 'counter' ? 2 : snapshot.phase === 'telegraph' ? (snapshot.enemyAttack === 'heavy' ? 1.6 : 1.1) : 0;
   const timerProgress = windowLength > 0 ? Math.max(0, Math.min(1, snapshot.remaining / windowLength)) : 0;
   $('#timer-progress').style.transform = `scaleX(${timerProgress})`;
   $('#stage-status').dataset.phase = snapshot.phase;
-  const intentText = snapshot.phase === 'ready' ? 'Awaiting challenger' : snapshot.phase === 'victory' ? 'Duel won' : snapshot.phase === 'defeat' ? 'Duel lost' : `Incoming ${snapshot.enemyAttack} attack`;
+  const intentText = snapshot.phase === 'ready' ? '等待挑战者' : snapshot.phase === 'victory' ? '对决胜利' : snapshot.phase === 'defeat' ? '对决失败' : `敌方${snapshot.enemyAttack === 'heavy' ? '重攻击' : '轻攻击'}将至`;
   $('#intent').textContent = intentText;
-  $('#intent-detail').textContent = snapshot.phase === 'ready' ? 'Enter the arena to begin' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? 'The duel has ended' : `${snapshot.enemyDamage} damage · ${snapshot.enemyAttack === 'heavy' ? 'wide, slow wind-up' : 'fast, light strike'}`;
+  $('#intent-detail').textContent = snapshot.phase === 'ready' ? '进入竞技场开始战斗' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? '对决已结束' : `${snapshot.enemyDamage} 点伤害 · ${snapshot.enemyAttack === 'heavy' ? '范围大，前摇较慢' : '快速轻击'}`;
   $('#intent-card').classList.toggle('intent-heavy', snapshot.enemyAttack === 'heavy' && snapshot.phase !== 'ready');
   const threatCard = $('#counter-threat-card');
   const counterThreatVisible = snapshot.phase === 'counter';
@@ -193,34 +194,34 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   threatCard.classList.toggle('threat-card-heavy', snapshot.enemyAttack === 'heavy');
   threatCard.setAttribute('aria-hidden', String(!counterThreatVisible));
   $('#threat-card-number').textContent = snapshot.enemyAttack === 'heavy' ? '02' : '01';
-  $('#threat-card-name').textContent = snapshot.enemyAttack === 'heavy' ? 'Heavy Attack' : 'Light Attack';
-  $('#threat-card-damage').textContent = `${snapshot.enemyDamage} DAMAGE`;
+  $('#threat-card-name').textContent = snapshot.enemyAttack === 'heavy' ? '重攻击' : '轻攻击';
+  $('#threat-card-damage').textContent = `${snapshot.enemyDamage} 点伤害`;
   const reservedAp = snapshot.queue.reduce((sum, id) => sum + (CARDS.find((card) => card.id === id)?.cost ?? 0), 0);
   const availableAp = Math.max(0, snapshot.ap - reservedAp);
   $('#ap').textContent = String(availableAp);
-  $('#ap-reserved').textContent = qte ? 'Spent on play' : `${reservedAp} reserved`;
+  $('#ap-reserved').textContent = qte ? '出牌时消耗' : `预留 ${reservedAp} 点`;
   $('#ap-reserved').classList.toggle('has-reserved', reservedAp > 0);
   const pips = $('#ap-pips'); pips.replaceChildren();
   for (let i = 0; i < snapshot.maxAp; i++) { const pip = document.createElement('i'); if (i < availableAp) pip.className = 'pip-live'; else if (i < snapshot.ap) pip.className = 'pip-reserved'; pips.append(pip); }
   const queue = $('#queue'); queue.replaceChildren();
   if (qte) {
     const li = document.createElement('li'); li.className = 'qte-response';
-    li.textContent = snapshot.paused ? 'Paused · return to continue' : snapshot.phase === 'planning' ? '1 Strike · 2 Heavy · 3 Guard · Enter to continue' : snapshot.phase === 'counter' ? '4 Counter now · Space to pass' : snapshot.phase === 'acting' ? `${CARDS.find((card) => card.id === snapshot.activeCard)?.name ?? 'Technique'} in motion` : snapshot.phase === 'telegraph' ? 'Watch the wind-up…' : 'Watch the duel';
+    li.textContent = snapshot.paused ? '已暂停 · 返回后继续' : snapshot.phase === 'planning' ? '1 快斩 · 2 重斩 · 3 格挡 · 回车结束选牌' : snapshot.phase === 'counter' ? '4 立即反击 · 空格放弃反击' : snapshot.phase === 'acting' ? `${(snapshot.activeCard ? CARD_NAMES[snapshot.activeCard] : '招式')}演出中` : snapshot.phase === 'telegraph' ? '观察敌人的前摇…' : '观看对决';
     queue.append(li);
-  } else if (!snapshot.queue.length) queue.innerHTML = '<li class="empty-queue">Your move will appear here</li>';
-  else snapshot.queue.forEach((id, i) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="queue-order">0${i + 1}</span><b>${card.name}</b><span class="queue-cost">${card.cost} AP</span>`; queue.append(li); });
-  $('#queue-count').textContent = qte ? 'QTE' : String(snapshot.queue.length);
+  } else if (!snapshot.queue.length) queue.innerHTML = '<li class="empty-queue">你的出牌将在此显示</li>';
+  else snapshot.queue.forEach((id, i) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="queue-order">0${i + 1}</span><b>${CARD_NAMES[card.id]}</b><span class="queue-cost">${card.cost} 点</span>`; queue.append(li); });
+  $('#queue-count').textContent = qte ? '即时' : String(snapshot.queue.length);
   const result = $('#result'); result.replaceChildren();
   if (snapshot.phase === 'acting' && snapshot.committed.length) {
     const activeIndex = snapshot.committed.indexOf(snapshot.activeCard!);
-    snapshot.committed.forEach((id, index) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="result-check">${snapshot.activeCard === id ? '↗' : index < activeIndex ? '✓' : '·'}</span><b>${card.name}</b><span>${snapshot.activeCard === id ? 'IN MOTION' : index < activeIndex ? 'RESOLVED' : 'UP NEXT'}</span>`; result.append(li); });
+    snapshot.committed.forEach((id, index) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="result-check">${snapshot.activeCard === id ? '↗' : index < activeIndex ? '✓' : '·'}</span><b>${CARD_NAMES[card.id]}</b><span>${snapshot.activeCard === id ? '演出中' : index < activeIndex ? '已结算' : '即将执行'}</span>`; result.append(li); });
   } else {
     const outcomes = snapshot.log.filter((line) => /^(Quick Strike|Heavy Strike|Guard is ready|Counter deals)/.test(line)).slice(-3).reverse();
-    if (!outcomes.length) result.innerHTML = '<li class="empty-result">No actions resolved yet</li>';
-    else outcomes.forEach((line) => { const li = document.createElement('li'); li.innerHTML = `<span class="result-check">✓</span><b>${escapeHtml(line.split(/ (?:deals|is ready)/)[0])}</b><span>${escapeHtml(line.replace(/^.*? (?:deals |is ready to )/, ''))}</span>`; result.append(li); });
+    if (!outcomes.length) result.innerHTML = '<li class="empty-result">尚未结算招式</li>';
+    else outcomes.forEach((line) => { const li = document.createElement('li'); li.innerHTML = `<span class="result-check">✓</span><b>${escapeHtml(chineseText(line.split(/ (?:deals|is ready)/)[0]))}</b><span>${escapeHtml(chineseText(line))}</span>`; result.append(li); });
   }
   const log = $('#log'); log.replaceChildren();
-  if (!snapshot.log.length) log.innerHTML = '<p class="log-empty">The first move is yours.</p>';
+  if (!snapshot.log.length) log.innerHTML = '<p class="log-empty">由你决定如何应对。</p>';
   else {
     const lines = [...snapshot.log].reverse().slice(0, 4);
     if (snapshot.phase === 'resolve' && lines.some((line) => line.includes('damage guarded'))) {
@@ -229,21 +230,22 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
       if (amount >= snapshot.enemyDamage) lines.unshift('Guard absorbs the full attack · 0 damage taken.');
     }
     if (snapshot.phase === 'resolve' && lines.some((line) => line.includes('Counter cancels'))) {
-      const li = document.createElement('li'); li.innerHTML = '<span class="result-check">✓</span><b>Counter</b><span>ATTACK CANCELLED · 2 DAMAGE</span>'; result.prepend(li);
+      const li = document.createElement('li'); li.innerHTML = '<span class="result-check">✓</span><b>反击</b><span>敌方攻击已取消 · 2 点伤害</span>'; result.prepend(li);
     }
-    lines.slice(0, 4).forEach((line, i) => { const p = document.createElement('p'); p.className = i === 0 ? 'log-latest' : ''; p.textContent = line; log.append(p); });
+    lines.slice(0, 4).forEach((line, i) => { const p = document.createElement('p'); p.className = i === 0 ? 'log-latest' : ''; p.textContent = chineseText(line); log.append(p); });
   }
   const outcome = recentOutcome(snapshot);
   if (outcome !== lastOutcomeLine) {
     lastOutcomeLine = outcome;
-    $('#outcome').textContent = outcome || (snapshot.phase === 'ready' ? 'Read the opening move' : '');
-    $('#history-summary').textContent = outcome || 'No actions resolved';
+    $('#outcome').textContent = outcome || (snapshot.phase === 'ready' ? '观察敌人的起手' : '');
+    $('#history-summary').textContent = outcome || '尚无战斗结果';
     $('#outcome').classList.remove('outcome-flash');
     if (outcome) requestAnimationFrame(() => $('#outcome').classList.add('outcome-flash'));
   }
   for (const card of CARDS) {
     const button = $<HTMLButtonElement>(`#card-${card.id}`);
-    const reason = combat.availability(card.id);
+    const rawReason = combat.availability(card.id);
+    const reason = rawReason === null ? null : chineseText(rawReason);
     const queued = snapshot.queue.includes(card.id);
     button.disabled = reason !== null && !queued;
     button.classList.toggle('card-selected', queued);
@@ -252,14 +254,14 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
     else button.setAttribute('aria-pressed', String(queued));
     button.classList.toggle('qte-available', qte && reason === null);
     button.classList.toggle('card-playing', qte && snapshot.activeCard === card.id);
-    button.title = qte ? `${card.name}: press ${ids.indexOf(card.id) + 1} or click to play now. ${reason ?? card.description}` : `${card.name}: select to queue. ${reason ?? card.description}`;
+    button.title = qte ? `${CARD_NAMES[card.id]}：按 ${ids.indexOf(card.id) + 1} 或点击立即出牌。${reason ?? CARD_DESCRIPTIONS[card.id]}` : `${CARD_NAMES[card.id]}：点击加入序列。${reason ?? CARD_DESCRIPTIONS[card.id]}`;
     const status = $(`#status-${card.id}`);
-    status.textContent = qte ? reason ?? `PRESS ${ids.indexOf(card.id) + 1} · PLAY NOW` : queued ? 'IN YOUR QUEUE' : reason ?? (card.id === 'counter' ? 'Counter window' : 'Available');
+    status.textContent = qte ? reason ?? `按 ${ids.indexOf(card.id) + 1} · 立即出牌` : queued ? '已加入序列' : reason ?? (card.id === 'counter' ? '反击时机' : '可用');
     status.title = reason ?? '';
   }
   const planning = snapshot.phase === 'planning' || snapshot.phase === 'counter';
   $('#submit').toggleAttribute('disabled', !planning || snapshot.paused);
-  $('#submit span').textContent = qte ? (snapshot.phase === 'counter' ? 'Pass counter' : 'Continue duel') : snapshot.queue.length ? 'Commit actions' : snapshot.phase === 'counter' ? 'Pass the counter' : 'Continue';
+  $('#submit span').textContent = qte ? (snapshot.phase === 'counter' ? '放弃反击' : '结束选牌') : snapshot.queue.length ? '执行出牌' : snapshot.phase === 'counter' ? '放弃反击' : '继续';
   $('#skip').toggleAttribute('disabled', !planning || snapshot.paused);
   $('#pause-banner').toggleAttribute('hidden', !snapshot.paused);
   $('.scene-frame').classList.toggle('is-paused', snapshot.paused);
@@ -267,12 +269,12 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   drawArena(snapshot, realSeconds);
 }
 function phaseCopy(s: CombatSnapshot): string {
-  if (s.phase === 'telegraph') return 'Read the enemy’s wind-up';
-  if (s.phase === 'planning') return s.controlMode === 'qte' ? 'Slow time · press a technique now' : 'Slow time · build your sequence';
-  if (s.phase === 'acting') return s.activeCard ? `${CARDS.find((c) => c.id === s.activeCard)?.name ?? 'Action'} in motion` : 'Your actions resolve';
-  if (s.phase === 'counter') return 'Slow time · counter or hold guard';
-  if (s.phase === 'resolve') return s.guard ? 'Guard absorbs the strike' : 'Damage is being resolved';
-  return s.phase === 'ready' ? 'A duel awaits' : 'Encounter complete';
+  if (s.phase === 'telegraph') return '观察敌人的前摇';
+  if (s.phase === 'planning') return s.controlMode === 'qte' ? '慢动作 · 按下招式出牌' : '慢动作 · 选择出牌序列';
+  if (s.phase === 'acting') return s.activeCard ? `${(s.activeCard ? CARD_NAMES[s.activeCard] : '招式')}演出中` : '正在结算招式';
+  if (s.phase === 'counter') return '慢动作 · 选择反击或依靠格挡';
+  if (s.phase === 'resolve') return s.guard ? '格挡抵御攻击' : '正在结算伤害';
+  return s.phase === 'ready' ? '等待对决开始' : '对战结束';
 }
 function escapeHtml(value: string): string { return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!)); }
 function recentOutcome(snapshot: CombatSnapshot): string {
@@ -284,23 +286,23 @@ function recentOutcome(snapshot: CombatSnapshot): string {
   }
   if (eventIndex < 0) return '';
   const line = log[eventIndex];
-  if (line.includes('Counter cancels') || line.includes('Incoming attack cancelled')) return 'Counter landed · incoming strike cancelled';
+  if (line.includes('Counter cancels') || line.includes('Incoming attack cancelled')) return '反击成功 · 敌方攻击已取消';
   const guarded = line.match(/(\d+) damage guarded/);
   if (guarded) {
     const nextRound = log.findIndex((entry, index) => index > eventIndex && entry.startsWith('Round '));
     const resolutionEnd = nextRound < 0 ? log.length : nextRound;
     const damageLine = log.slice(eventIndex + 1, resolutionEnd).find((entry) => /^Enemy attack deals \d+ damage to the player/.test(entry));
     const taken = Number(damageLine?.match(/deals (\d+) damage/)?.[1] ?? 0);
-    return taken === 0 ? `Guard blocked ${guarded[1]} · 0 damage taken` : `Guard blocked ${guarded[1]} · ${taken} damage taken`;
+    return taken === 0 ? `格挡抵御 ${guarded[1]} 点 · 未受伤` : `格挡抵御 ${guarded[1]} 点 · 受到 ${taken} 点伤害`;
   }
-  if (line.startsWith('Guard is ready')) return 'Guard raised · next hit reduced by 2';
+  if (line.startsWith('Guard is ready')) return '已架起格挡 · 下次受击减伤 2 点';
   const damage = line.match(/(Quick Strike|Heavy Strike|Counter|Enemy attack) deals (\d+) damage to the (enemy|player)/);
   if (damage) {
     if (damage[1] === 'Enemy attack' && eventIndex > 0) {
       const priorGuard = log[eventIndex - 1].match(/(\d+) damage guarded/);
-      if (priorGuard) return `Guard blocked ${priorGuard[1]} · ${damage[2]} damage taken`;
+      if (priorGuard) return `格挡抵御 ${priorGuard[1]} 点 · 受到 ${damage[2]} 点伤害`;
     }
-    return `${damage[1]} · ${damage[2]} damage to ${damage[3] === 'enemy' ? 'duelist' : 'you'}`;
+    return `${chineseText(damage[1])} · 对${damage[3] === 'enemy' ? '敌人' : '你'}造成 ${damage[2]} 点伤害`;
   }
   return '';
 }

@@ -294,3 +294,62 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .shot-name { margin-left: 2px; font-size: 7px; }
   .qte-response { font-size: 10px; }
 }
+
+/* Portrait touch play keeps the arena and all four actions within one screen. */
+@media (max-width: 600px) and (orientation: portrait) {
+  body { min-width: 320px; }
+  .game-shell { min-height: 100svh; padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
+  .masthead { height: 50px; }
+  .brand { letter-spacing: .04em; gap: 5px; }
+  .icon-button { min-height: 44px; font-size: 11px; padding: 6px 8px; letter-spacing: 0; }
+  .arena-layout { flex: none; gap: 4px; padding: 6px 0 0; }
+  .scene-frame { height: clamp(290px, calc(100svh - 360px), 560px); min-height: 290px; }
+  .scene-topline { top: 7px; left: 8px; right: 8px; letter-spacing: 0; }
+  .fighters-hud { top: 34px; left: 6px; right: 6px; gap: 5px; }
+  .fighter-card { padding: 5px 7px; }
+  .fighter-id b, .hp-line { font-size: 10px; letter-spacing: 0; }
+  .fighter-id small { display: none; }
+  .intent-card { padding: 3px 8px; }
+  .intent-label { display: none; }
+  .intent-card b { display: inline; font-size: 11px; }
+  .intent-card small { margin-left: 5px; font-size: 10px; }
+  .counter-threat-card { top: 108px; right: 7px; width: 84px; min-height: 126px; padding: 5px; }
+  .threat-card-art { height: 43px; margin-top: 4px; }
+  .threat-card-heading, .threat-card-copy small { font-size: 9px; letter-spacing: 0; }
+  .threat-card-copy strong { font-size: 13px; }
+  .threat-card-copy span { font-size: 11px; letter-spacing: 0; }
+  .stage-status { bottom: 6px; width: calc(100% - 12px); padding: 6px 8px; }
+  .phase-heading { flex-wrap: wrap; font-size: 11px; letter-spacing: 0; gap: 5px; }
+  #phase-copy { font-size: 10px; }
+  .outcome { font-size: 10px; max-width: 190px; }
+  .timer { font-size: 20px; }
+  .combat-strip { min-height: 56px; padding: 3px 8px; }
+  .queue-cluster, #app[data-control-mode="qte"] .queue-cluster { grid-template-columns: 70px minmax(0, 1fr); }
+  .queue-list li { white-space: normal; padding: 2px 4px; }
+  .qte-response { font-size: 11px; }
+  .queue-title { letter-spacing: 0; font-size: 9px; }
+  .queue-count { display: none; }
+  .history-panel { order: 3; }
+  .history-panel summary { min-height: 44px; }
+  .card-desk { padding: 4px 0; gap: 5px; }
+  .desk-label { min-height: 24px; }
+  .desk-label .eyebrow { font-size: 11px; letter-spacing: 0; }
+  .desk-label small { font-size: 10px; margin-left: 5px; }
+  .card { min-height: 94px; padding: 5px 8px; }
+  .card-name { font-size: 16px; margin-top: 1px; }
+  .card-desc { font-size: 11px; max-width: 100%; line-height: 1.4; }
+  .card-art { top: 6px; right: 50px; width: 24px; height: 24px; }
+  .card-art svg { width: 24px; height: 24px; }
+  .card-cost b { font-size: 16px; }
+  .card-cost small { font-size: 9px; }
+  #app[data-control-mode="qte"] .card-index { width: 20px; height: 20px; font-size: 11px; }
+  #app[data-control-mode="qte"] .card-status { min-height: 18px; font-size: 10px; padding-top: 2px; }
+  .desk-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; }
+  .text-button, .submit-button, .primary-button { min-height: 44px; font-size: 14px; }
+  .desk-actions kbd, .desk-actions b, .key-hint, #controls-help { display: none; }
+  .footer-note { font-size: 10px; letter-spacing: 0; }
+  .overlay { padding: 100px 18px 60px; }
+  .overlay h1 { font-size: 30px; }
+  .overlay p { font-size: 13px; }
+  button, summary { touch-action: manipulation; }
+}
