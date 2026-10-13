@@ -57,6 +57,23 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .intent-card small { color: #aab2a8; font-size: 9px; }
 .intent-heavy { border-color: #d9775d99; }
 .intent-heavy .intent-label { color: #ef9b77; }
+.counter-threat-card { position: absolute; z-index: 2; top: 122px; right: clamp(20px, 3vw, 44px); width: clamp(132px, 12vw, 166px); min-height: 184px; overflow: hidden; padding: 10px; border: 1px solid #eea17c99; border-radius: 3px; background: linear-gradient(155deg, #522a27f2, #241b1beF 72%); box-shadow: -12px 14px 30px #080b0c8a, inset 0 0 0 2px #f2b18a12; opacity: 0; pointer-events: none; transform: translate3d(42px, -18px, 0) rotate(6deg) scale(.88); transform-origin: 100% 0; visibility: hidden; }
+.counter-threat-card::before { content: ""; position: absolute; inset: 0; border: 6px solid transparent; border-top-color: #ffbc8b1c; border-right-color: #ffbc8b12; pointer-events: none; }
+.counter-threat-card::after { content: ""; position: absolute; top: 0; bottom: 0; left: 7px; width: 2px; background: linear-gradient(transparent, #f0946d 22%, #f0946d 78%, transparent); opacity: .72; }
+.counter-threat-card.threat-card-visible { visibility: visible; animation: threat-card-enter .42s cubic-bezier(.16, .9, .25, 1.18) both; }
+.threat-speed-lines { position: absolute; z-index: -1; inset: -30px -15px; background: repeating-linear-gradient(157deg, transparent 0 12px, #f1a47a12 13px 14px); transform: skewX(-12deg); }
+.threat-card-heading { display: flex; align-items: center; justify-content: space-between; padding-left: 7px; color: #f4c09f; font: 7px var(--mono); letter-spacing: .14em; }
+.threat-card-heading b { color: #c9775c; font-size: 9px; }
+.threat-card-art { position: relative; display: grid; height: 92px; place-items: center; margin: 6px 0 4px 7px; overflow: hidden; border: 1px solid #eda07847; background: radial-gradient(circle at 57% 50%, #d76c505e, transparent 45%), linear-gradient(145deg, #1d1c1e, #412523); }
+.threat-card-art i { position: absolute; width: 124px; height: 4px; background: linear-gradient(90deg, transparent, #ffe1b8, transparent); box-shadow: 0 -11px #e2765852, 0 11px #e2765833; transform: rotate(-31deg); }
+.threat-card-art span { z-index: 1; color: #f4d0ac; font: 700 34px/1 serif; text-shadow: 2px 3px 0 #8e3d32, 0 0 16px #ef866c; transform: rotate(-6deg); }
+.threat-card-copy { display: flex; flex-direction: column; gap: 2px; padding-left: 7px; }
+.threat-card-copy small { color: #cf8269; font: 7px var(--mono); letter-spacing: .16em; }
+.threat-card-copy strong { color: #fff0df; font: 600 15px var(--serif); }
+.threat-card-copy span { margin-top: 3px; color: #f3a17f; font: 800 11px var(--mono); letter-spacing: .08em; }
+.threat-card-heavy { border-color: #ffd08fc2; background: linear-gradient(155deg, #683326f4, #251b19ef 72%); }
+.threat-card-heavy .threat-card-art i { height: 7px; box-shadow: 0 -14px #e98f526b, 0 14px #e98f5247; }
+.scene-frame.is-paused .counter-threat-card { animation-play-state: paused; }
 .stage-status { position: absolute; bottom: 14px; left: 50%; width: min(460px, calc(100% - 34px)); transform: translateX(-50%); padding: 8px 12px 9px; border: 1px solid #ffffff25; border-radius: 2px; background: #152426e8; box-shadow: 0 6px 20px #0003; color: #e1dbc9; }
 .phase-heading { display: flex; align-items: center; gap: 8px; min-height: 14px; font: 9px var(--mono); letter-spacing: .1em; }
 .stage-dot { width: 5px; height: 5px; flex: none; }
@@ -170,6 +187,11 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .webgl-error[hidden], .pause-banner[hidden] { display: none; }
 @keyframes pulse { 50% { opacity: .52; } }
 @keyframes outcome-in { from { transform: translateY(3px); opacity: .3; } to { transform: translateY(0); opacity: 1; } }
+@keyframes threat-card-enter {
+  0% { opacity: 0; transform: translate3d(42px, -18px, 0) rotate(6deg) scale(.88); }
+  62% { opacity: 1; transform: translate3d(-5px, 3px, 0) rotate(-2deg) scale(1.025); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(-1deg) scale(1); }
+}
 @media (min-width: 1400px) and (min-height: 900px) {
   .game-shell { padding-right: 40px; padding-left: 40px; }
   .masthead { height: 58px; }
@@ -208,6 +230,10 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .intent-card b { margin: 2px 0; font-size: 11px; }
   .intent-card small { font-size: 8px; }
   .stage-status { bottom: 9px; width: calc(100% - 18px); padding: 7px 9px; }
+  .counter-threat-card { top: 136px; right: 12px; width: 126px; min-height: 154px; padding: 7px; }
+  .threat-card-art { height: 68px; }
+  .threat-card-art span { font-size: 26px; }
+  .threat-card-copy strong { font-size: 12px; }
   .combat-strip { grid-template-columns: 1fr; gap: 3px; padding: 5px 9px; }
   .ap-cluster { min-height: 28px; }
   .ap-label { display: none; }
@@ -245,7 +271,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  .counter-threat-card.threat-card-visible { animation-name: threat-card-fade; transform: none; }
 }
+@keyframes threat-card-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Direct-play buttons share the same card definitions and input adapter. */
 .header-controls { display: flex; align-items: center; gap: 8px; }

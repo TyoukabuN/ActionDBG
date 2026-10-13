@@ -30,6 +30,12 @@ root.innerHTML = `
             <div class="hp-line"><span>HP</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
           </div>
         </div>
+        <aside class="counter-threat-card" id="counter-threat-card" data-testid="counter-threat-card" aria-live="polite" aria-hidden="true">
+          <span class="threat-speed-lines" aria-hidden="true"></span>
+          <div class="threat-card-heading"><span>ENEMY CARD</span><b id="threat-card-number">01</b></div>
+          <div class="threat-card-art" aria-hidden="true"><i></i><span>斬</span></div>
+          <div class="threat-card-copy"><small>INCOMING</small><strong id="threat-card-name">Light Attack</strong><span id="threat-card-damage">2 DAMAGE</span></div>
+        </aside>
         <div class="stage-status" id="stage-status">
           <div class="phase-heading"><span class="stage-dot"></span><span id="phase" data-testid="phase">READY</span><span id="phase-copy">A duel awaits</span></div>
           <div class="timer-row"><div class="timer-track"><i id="timer-progress"></i></div><div class="timer-readout"><span id="outcome" class="outcome" aria-live="polite">Read the opening move</span><b class="timer" id="timer" data-testid="timer">—</b></div></div>
@@ -181,6 +187,14 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#intent').textContent = intentText;
   $('#intent-detail').textContent = snapshot.phase === 'ready' ? 'Enter the arena to begin' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? 'The duel has ended' : `${snapshot.enemyDamage} damage · ${snapshot.enemyAttack === 'heavy' ? 'wide, slow wind-up' : 'fast, light strike'}`;
   $('#intent-card').classList.toggle('intent-heavy', snapshot.enemyAttack === 'heavy' && snapshot.phase !== 'ready');
+  const threatCard = $('#counter-threat-card');
+  const counterThreatVisible = snapshot.phase === 'counter';
+  threatCard.classList.toggle('threat-card-visible', counterThreatVisible);
+  threatCard.classList.toggle('threat-card-heavy', snapshot.enemyAttack === 'heavy');
+  threatCard.setAttribute('aria-hidden', String(!counterThreatVisible));
+  $('#threat-card-number').textContent = snapshot.enemyAttack === 'heavy' ? '02' : '01';
+  $('#threat-card-name').textContent = snapshot.enemyAttack === 'heavy' ? 'Heavy Attack' : 'Light Attack';
+  $('#threat-card-damage').textContent = `${snapshot.enemyDamage} DAMAGE`;
   const reservedAp = snapshot.queue.reduce((sum, id) => sum + (CARDS.find((card) => card.id === id)?.cost ?? 0), 0);
   const availableAp = Math.max(0, snapshot.ap - reservedAp);
   $('#ap').textContent = String(availableAp);
@@ -248,6 +262,7 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#submit span').textContent = qte ? (snapshot.phase === 'counter' ? 'Pass counter' : 'Continue duel') : snapshot.queue.length ? 'Commit actions' : snapshot.phase === 'counter' ? 'Pass the counter' : 'Continue';
   $('#skip').toggleAttribute('disabled', !planning || snapshot.paused);
   $('#pause-banner').toggleAttribute('hidden', !snapshot.paused);
+  $('.scene-frame').classList.toggle('is-paused', snapshot.paused);
   if (snapshot.phase === 'victory' || snapshot.phase === 'defeat') showTerminal(snapshot.phase === 'victory');
   drawArena(snapshot, realSeconds);
 }

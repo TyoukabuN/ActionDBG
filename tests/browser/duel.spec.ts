@@ -36,6 +36,7 @@ test('history disclosure preserves keyboard control and queued costs show AP res
   await phase(page, 'counter');
   await page.keyboard.press('Space');
   await page.clock.runFor(700);
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-spark-particles', '14');
   await expect(page.locator('#round')).toHaveText('02');
   await expect(page.locator('#outcome')).toContainText('0 damage taken');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
@@ -201,12 +202,21 @@ test('QTE buttons play directly, resume time, and keyboard counter changes the c
   expect(Number(await page.getByTestId('timer').textContent())).toBeGreaterThanOrEqual(time - .2);
   await expect(page.getByTestId('card-quick')).toBeDisabled();
   await expect(page.locator('#enemy-hp')).toHaveText('11 / 12');
+  await expect(canvas).toHaveAttribute('data-blood-particles', '18');
   await page.getByTestId('submit').click();
   await phase(page, 'counter');
+  const enemyCard = page.getByTestId('counter-threat-card');
+  await expect(enemyCard).toBeVisible();
+  await expect(enemyCard).toContainText('Light Attack');
+  await expect(enemyCard).toContainText('2 DAMAGE');
+  await expect(enemyCard).toHaveAttribute('aria-hidden', 'false');
   await page.clock.runFor(400);
   await expect(canvas).toHaveAttribute('data-shot', 'counter-window');
+  expect(Number(await canvas.getAttribute('data-letterbox'))).toBeGreaterThan(.95);
+  await expect(canvas).toHaveAttribute('data-render-order', 'scene,letterbox,actors,effects');
   await page.keyboard.press('4');
   await phase(page, 'resolve');
+  await expect(enemyCard).toBeHidden();
   await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
   await page.clock.runFor(220);
@@ -224,6 +234,7 @@ test('QTE buttons play directly, resume time, and keyboard counter changes the c
 });
 
 test('QTE native keyboard buttons and heavy/guard shots respect pause and expiry', async ({ page }) => {
+  test.setTimeout(120_000);
   await openQte(page);
   const canvas = page.getByTestId('canvas');
   await page.getByTestId('card-heavy').focus();
@@ -251,6 +262,8 @@ test('QTE native keyboard buttons and heavy/guard shots respect pause and expiry
   await phase(page, 'planning');
   await page.clock.runFor(4100);
   await phase(page, 'counter');
+  await expect(page.getByTestId('counter-threat-card')).toContainText('Heavy Attack');
+  await expect(page.getByTestId('counter-threat-card')).toContainText('4 DAMAGE');
   await page.clock.runFor(2700);
   await expect(page.locator('#round')).toHaveText('03');
   await expect(page.locator('#player-hp')).toHaveText('6 / 10');

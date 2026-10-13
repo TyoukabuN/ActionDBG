@@ -9,21 +9,28 @@ export interface CameraPose {
   readonly position: readonly [number, number, number];
   readonly target: readonly [number, number, number];
   readonly fov: number;
+  /** Small authored Dutch angle in radians; stable decision shots stay level. */
+  readonly roll: number;
 }
 
 const POSES: Readonly<Record<ShotId, CameraPose>> = {
-  overview: { id: 'overview', position: [-8, 4.2, 8], target: [0.4, 1.4, 0], fov: 36 },
-  'enemy-windup': { id: 'enemy-windup', position: [-1.6, 2.7, 7.2], target: [0.8, 1.3, 0], fov: 44 },
-  decision: { id: 'decision', position: [-6.2, 3.4, 8.2], target: [0.2, 1.35, 0], fov: 41 },
-  'quick-strike': { id: 'quick-strike', position: [-4.6, 2.5, 6.8], target: [-0.4, 1.3, 0], fov: 44 },
-  'heavy-strike': { id: 'heavy-strike', position: [-3.6, 2, 7.5], target: [-0.1, 1.35, 0], fov: 44 },
-  guard: { id: 'guard', position: [-5.4, 2.6, 6.8], target: [-0.8, 1.3, 0.2], fov: 46 },
-  'counter-window': { id: 'counter-window', position: [0.4, 2.8, 7.5], target: [0.1, 1.3, 0], fov: 44 },
-  parry: { id: 'parry', position: [-0.3, 2.5, 7.3], target: [-0.2, 1.35, 0], fov: 46 },
-  'enemy-strike': { id: 'enemy-strike', position: [-1.8, 2.5, 7.3], target: [0.3, 1.25, 0], fov: 45 },
-  impact: { id: 'impact', position: [-2.9, 2.4, 7], target: [-0.2, 1.35, 0], fov: 45 },
-  victory: { id: 'victory', position: [-6.6, 3.6, 8.4], target: [0, 1.25, 0], fov: 39 },
-  defeat: { id: 'defeat', position: [-6.6, 3.1, 8.4], target: [0, 1.1, 0], fov: 39 },
+  // The stable visual axis sits just behind the player's right shoulder. The
+  // shoulder and cape frame the foreground while the opponent remains the
+  // focal point, like a recurring manga panel rather than a distant arena cam.
+  overview: { id: 'overview', position: [-4.55, 2.35, 2.75], target: [1.35, 1.3, -0.35], fov: 49, roll: 0 },
+  'enemy-windup': { id: 'enemy-windup', position: [-4.25, 2.28, 2.62], target: [1.75, 1.35, -0.42], fov: 47, roll: -0.015 },
+  decision: { id: 'decision', position: [-4.48, 2.42, 2.86], target: [1.35, 1.3, -0.35], fov: 49, roll: 0 },
+  // Action panels keep the same screen direction but change height, cant and
+  // focal length enough to read as authored cuts instead of small dollies.
+  'quick-strike': { id: 'quick-strike', position: [-3.72, 1.48, 3.45], target: [0.35, 1.18, -0.12], fov: 53, roll: 0.055 },
+  'heavy-strike': { id: 'heavy-strike', position: [-3.18, 1.12, 4.18], target: [0.45, 1.48, -0.08], fov: 45, roll: -0.075 },
+  guard: { id: 'guard', position: [-1.05, 2.05, 5.05], target: [-1.25, 1.28, 0.3], fov: 50, roll: 0.035 },
+  'counter-window': { id: 'counter-window', position: [-3.82, 2.08, 2.28], target: [1.82, 1.32, -0.4], fov: 46, roll: -0.03 },
+  parry: { id: 'parry', position: [-0.18, 1.62, 5.1], target: [-0.05, 1.3, 0], fov: 52, roll: 0.085 },
+  'enemy-strike': { id: 'enemy-strike', position: [-3.9, 1.68, 2.75], target: [-0.2, 1.25, 0.12], fov: 51, roll: -0.05 },
+  impact: { id: 'impact', position: [-1.45, 1.45, 4.65], target: [0.15, 1.28, 0], fov: 54, roll: 0.07 },
+  victory: { id: 'victory', position: [-3.55, 1.75, 4.3], target: [0.15, 1.35, 0], fov: 47, roll: -0.025 },
+  defeat: { id: 'defeat', position: [-4.15, 1.28, 3.35], target: [-0.75, 0.95, 0.18], fov: 50, roll: 0.04 },
 };
 
 const TRANSITION_SECONDS = 0.18;
@@ -74,6 +81,12 @@ export class CameraDirector {
     if (previous && snapshot.phase === 'acting'
       && (previous.phase !== 'acting' || previous.activeCard !== snapshot.activeCard)) {
       // A new button press takes priority over the previous strike's hold.
+      this.heldShot = null;
+      this.holdRemaining = 0;
+    }
+    if (previous && snapshot.phase === 'counter' && previous.phase !== 'counter') {
+      // The slow-time decision is a stronger beat than a completed card's
+      // impact hold: enter its close shot as soon as the Counter opens.
       this.heldShot = null;
       this.holdRemaining = 0;
     }
@@ -144,6 +157,7 @@ export class CameraDirector {
       position: this.lerp3(this.from.position, this.targetPose.position, eased),
       target: this.lerp3(this.from.target, this.targetPose.target, eased),
       fov: this.from.fov + (this.targetPose.fov - this.from.fov) * eased,
+      roll: this.from.roll + (this.targetPose.roll - this.from.roll) * eased,
     };
     return this.pose;
   }

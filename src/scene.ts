@@ -21,6 +21,139 @@ type FeedbackSprite = {
   duration: number;
 };
 
+const WORLD_LAYER = 0;
+const ACTOR_LAYER = 1;
+const EFFECT_LAYER = 2;
+
+class BloodBurst {
+  readonly points: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
+  private readonly positions = new Float32Array(18 * 3);
+  private readonly velocities = new Float32Array(18 * 3);
+  private remaining = 0;
+  private seed = 0;
+
+  constructor() {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    const material = new THREE.PointsMaterial({
+      color: '#9d1726', size: 0.12, sizeAttenuation: true,
+      transparent: true, opacity: 0, depthTest: false, depthWrite: false,
+    });
+    this.points = new THREE.Points(geometry, material);
+    this.points.visible = false;
+    this.points.frustumCulled = false;
+    this.points.renderOrder = 10;
+    this.points.layers.set(EFFECT_LAYER);
+  }
+
+  get activeCount(): number { return this.remaining > 0 ? 18 : 0; }
+
+  trigger(origin: THREE.Vector3, direction: number): void {
+    this.seed++;
+    this.remaining = 0.56;
+    this.points.visible = true;
+    this.points.material.opacity = 0.95;
+    for (let i = 0; i < 18; i++) {
+      const p = i * 3;
+      const angle = i * 2.399 + this.seed * 0.71;
+      const spread = 0.28 + (i % 5) * 0.065;
+      this.positions[p] = origin.x;
+      this.positions[p + 1] = origin.y;
+      this.positions[p + 2] = origin.z;
+      this.velocities[p] = direction * (0.55 + spread * 2.1) + Math.cos(angle) * spread;
+      this.velocities[p + 1] = 0.45 + (i % 6) * 0.16;
+      this.velocities[p + 2] = Math.sin(angle) * (0.45 + spread);
+    }
+    (this.points.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+  }
+
+  update(delta: number, reducedMotion: boolean): void {
+    if (this.remaining <= 0) return;
+    const step = reducedMotion ? Math.min(delta, 0.025) : delta;
+    this.remaining = Math.max(0, this.remaining - delta);
+    for (let i = 0; i < 18; i++) {
+      const p = i * 3;
+      this.velocities[p + 1] -= 2.9 * step;
+      this.positions[p] += this.velocities[p] * step;
+      this.positions[p + 1] += this.velocities[p + 1] * step;
+      this.positions[p + 2] += this.velocities[p + 2] * step;
+    }
+    this.points.material.opacity = Math.min(0.95, this.remaining * 2.8);
+    (this.points.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+    if (this.remaining === 0) this.points.visible = false;
+  }
+
+  clear(): void { this.remaining = 0; this.points.visible = false; }
+}
+
+class SparkBurst {
+  readonly lines: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  private readonly positions = new Float32Array(14 * 2 * 3);
+  private readonly velocities = new Float32Array(14 * 3);
+  private readonly origin = new THREE.Vector3();
+  private remaining = 0;
+  private seed = 0;
+
+  constructor() {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(this.positions, 3));
+    const material = new THREE.LineBasicMaterial({
+      color: '#ffe0a0', transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false,
+    });
+    this.lines = new THREE.LineSegments(geometry, material);
+    this.lines.visible = false;
+    this.lines.frustumCulled = false;
+    this.lines.renderOrder = 11;
+    this.lines.layers.set(EFFECT_LAYER);
+  }
+
+  get activeCount(): number { return this.remaining > 0 ? 14 : 0; }
+
+  trigger(origin: THREE.Vector3): void {
+    this.seed++;
+    this.origin.copy(origin);
+    this.remaining = 0.46;
+    this.lines.visible = true;
+    this.lines.material.opacity = 1;
+    for (let i = 0; i < 14; i++) {
+      const angle = i * 2.18 + this.seed * 0.43;
+      const speed = 1.6 + (i % 5) * 0.42;
+      const v = i * 3;
+      this.velocities[v] = Math.cos(angle) * speed;
+      this.velocities[v + 1] = 0.45 + (i % 4) * 0.52;
+      this.velocities[v + 2] = Math.sin(angle) * speed;
+    }
+    this.write(0);
+  }
+
+  update(delta: number, reducedMotion: boolean): void {
+    if (this.remaining <= 0) return;
+    this.remaining = Math.max(0, this.remaining - delta);
+    const age = 0.46 - this.remaining;
+    this.write(reducedMotion ? Math.min(age, 0.08) : age);
+    this.lines.material.opacity = Math.min(1, this.remaining * 3.5);
+    if (this.remaining === 0) this.lines.visible = false;
+  }
+
+  clear(): void { this.remaining = 0; this.lines.visible = false; }
+
+  private write(age: number): void {
+    for (let i = 0; i < 14; i++) {
+      const v = i * 3;
+      const p = i * 6;
+      const tailAge = Math.max(0, age - 0.07);
+      this.positions[p] = this.origin.x + this.velocities[v] * tailAge;
+      this.positions[p + 1] = this.origin.y + this.velocities[v + 1] * tailAge - 1.8 * tailAge * tailAge;
+      this.positions[p + 2] = this.origin.z + this.velocities[v + 2] * tailAge;
+      this.positions[p + 3] = this.origin.x + this.velocities[v] * age;
+      this.positions[p + 4] = this.origin.y + this.velocities[v + 1] * age - 1.8 * age * age;
+      this.positions[p + 5] = this.origin.z + this.velocities[v + 2] * age;
+    }
+    (this.lines.geometry.getAttribute('position') as THREE.BufferAttribute).needsUpdate = true;
+  }
+}
+
 /** Procedural duel presentation. The simulation owns all outcomes; this class only animates snapshots. */
 export class Arena {
   private readonly renderer: THREE.WebGLRenderer;
@@ -28,6 +161,10 @@ export class Arena {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly cameraDirector = new CameraDirector();
   private readonly cameraLookTarget = new THREE.Vector3();
+  private readonly letterboxScene = new THREE.Scene();
+  private readonly letterboxCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
+  private readonly topBar: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  private readonly bottomBar: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
   private readonly player: Fighter;
   private readonly enemy: Fighter;
   private readonly owned: THREE.Object3D[] = [];
@@ -37,6 +174,8 @@ export class Arena {
   private readonly enemyDamageLabel: FeedbackSprite;
   private readonly playerDamageLabel: FeedbackSprite;
   private readonly contactRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
+  private readonly blood = new BloodBurst();
+  private readonly sparks = new SparkBurst();
   private previousSnapshot: CombatSnapshot | null = null;
   private enemyFlash = 0;
   private playerFlash = 0;
@@ -50,6 +189,7 @@ export class Arena {
   private ringRemaining = 0;
   private shakeRemaining = 0;
   private shakeStrength = 0;
+  private letterboxAmount = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -58,6 +198,7 @@ export class Arena {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.info.autoReset = false;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.18;
     this.scene.background = new THREE.Color('#18292c');
@@ -66,20 +207,32 @@ export class Arena {
     this.camera.position.set(-8, 4.2, 8);
     this.camera.lookAt(0.4, 1.4, 0);
 
-    this.scene.add(new THREE.HemisphereLight('#fff0d4', '#51433d', 2.25));
+    const sky = new THREE.HemisphereLight('#fff0d4', '#51433d', 2.25);
+    sky.layers.enable(ACTOR_LAYER);
+    this.scene.add(sky);
     const sun = new THREE.DirectionalLight('#ffe3af', 4.1);
     sun.position.set(-5, 10, 6); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
     sun.shadow.camera.left = -9; sun.shadow.camera.right = 9; sun.shadow.camera.top = 9; sun.shadow.camera.bottom = -5;
-    this.scene.add(sun);
-    const rim = new THREE.DirectionalLight('#69d1c5', 2.7); rim.position.set(5, 5, -5); this.scene.add(rim);
-    this.hitLight = new THREE.PointLight('#ffb16f', 0, 8, 2); this.hitLight.position.set(0, 2, 1); this.scene.add(this.hitLight);
+    sun.layers.enable(ACTOR_LAYER); this.scene.add(sun);
+    const rim = new THREE.DirectionalLight('#69d1c5', 2.7); rim.position.set(5, 5, -5); rim.layers.enable(ACTOR_LAYER); this.scene.add(rim);
+    this.hitLight = new THREE.PointLight('#ffb16f', 0, 8, 2); this.hitLight.position.set(0, 2, 1); this.hitLight.layers.enable(ACTOR_LAYER); this.scene.add(this.hitLight);
     this.contactRing = new THREE.Mesh(
       new THREE.TorusGeometry(0.34, 0.035, 6, 28),
       new THREE.MeshBasicMaterial({ color: '#f3d9a5', transparent: true, opacity: 0, depthWrite: false }),
     );
     this.contactRing.visible = false;
     this.contactRing.renderOrder = 2;
+    this.contactRing.layers.set(EFFECT_LAYER);
     this.scene.add(this.contactRing);
+
+    const barGeometry = new THREE.PlaneGeometry(2.32, 0.34);
+    const barMaterial = new THREE.MeshBasicMaterial({ color: '#070707', transparent: true, opacity: 0.98, depthTest: false, depthWrite: false });
+    this.topBar = new THREE.Mesh(barGeometry, barMaterial);
+    this.bottomBar = new THREE.Mesh(barGeometry, barMaterial.clone());
+    this.topBar.position.set(2.32, 0.83, -1);
+    this.bottomBar.position.set(-2.32, -0.83, -1);
+    this.letterboxScene.add(this.topBar, this.bottomBar);
+    this.letterboxCamera.position.z = 1;
 
     const floorMaterial = new THREE.MeshStandardMaterial({ color: '#9b765b', roughness: 0.86 });
     const floor = new THREE.Mesh(new THREE.CylinderGeometry(7.4, 8.1, 0.36, 64), floorMaterial);
@@ -102,11 +255,31 @@ export class Arena {
     this.player.root.position.set(-2.35, 0, 0.5); this.player.root.rotation.y = Math.PI / 2;
     this.enemy = this.makeFighter('#d9624d', '#dfb68a', false);
     this.enemy.root.position.set(2.25, 0, -0.5); this.enemy.root.rotation.y = -Math.PI / 2;
+    this.player.root.traverse(object => object.layers.set(ACTOR_LAYER));
+    this.enemy.root.traverse(object => object.layers.set(ACTOR_LAYER));
     this.scene.add(this.player.root, this.enemy.root);
+    this.scene.add(this.blood.points, this.sparks.lines);
     this.enemyDamageLabel = this.makeFeedbackSprite();
     this.playerDamageLabel = this.makeFeedbackSprite();
     this.owned.push(floor, top, ring, ...this.player.root.children, ...this.enemy.root.children);
+    this.canvas.dataset.materials = String(this.countMaterials());
+    this.canvas.dataset.compositionPasses = '4';
+    this.canvas.dataset.postPasses = '0';
+    this.canvas.dataset.shadowLights = '1';
+    this.canvas.dataset.dprCap = '2';
     this.resize();
+  }
+
+  private countMaterials(): number {
+    const materials = new Set<THREE.Material>();
+    const collect = (root: THREE.Object3D) => root.traverse(object => {
+      const material = (object as THREE.Mesh).material;
+      if (Array.isArray(material)) material.forEach(item => materials.add(item));
+      else if (material) materials.add(material);
+    });
+    collect(this.scene);
+    collect(this.letterboxScene);
+    return materials.size;
   }
 
   private addBackdrop(): void {
@@ -195,6 +368,7 @@ export class Arena {
     const sprite = new THREE.Sprite(material);
     sprite.scale.set(1.62, 0.42, 1);
     sprite.renderOrder = 3;
+    sprite.layers.set(EFFECT_LAYER);
     sprite.visible = false;
     this.scene.add(sprite);
     return { canvas, context, sprite, material, baseY: 2.22, remaining: 0, duration: 0.38 };
@@ -206,6 +380,7 @@ export class Arena {
     // Terminal combat stops simulation, but the final hit feedback should settle.
     if (!snapshot.paused) this.advanceFeedback(delta);
     this.observeSnapshot(snapshot);
+    this.updateLetterbox(snapshot, delta);
     const t = snapshot.visualTime;
     const enemy = this.enemy, player = this.player;
     const breathing = Math.sin(t * 2.25);
@@ -331,12 +506,18 @@ export class Arena {
     this.camera.position.x += Math.sin(t * 49) * shake;
     this.cameraLookTarget.set(...cameraPose.target);
     this.camera.lookAt(this.cameraLookTarget);
+    this.camera.rotation.z += cameraPose.roll;
     if (this.camera.fov !== cameraPose.fov) {
       this.camera.fov = cameraPose.fov;
       this.camera.updateProjectionMatrix();
     }
     this.canvas.dataset.shot = cameraPose.id;
     this.canvas.dataset.cameraPosition = cameraPose.position.map((value) => value.toFixed(2)).join(',');
+    this.canvas.dataset.cameraRoll = cameraPose.roll.toFixed(3);
+    this.canvas.dataset.letterbox = this.letterboxAmount.toFixed(3);
+    this.canvas.dataset.renderOrder = 'scene,letterbox,actors,effects';
+    this.canvas.dataset.bloodParticles = String(this.blood.activeCount);
+    this.canvas.dataset.sparkParticles = String(this.sparks.activeCount);
     if (this.ringRemaining > 0) {
       const progress = 1 - this.ringRemaining / 0.24;
       this.contactRing.visible = true;
@@ -345,7 +526,7 @@ export class Arena {
     } else {
       this.contactRing.visible = false;
     }
-    this.renderer.render(this.scene, this.camera);
+    this.renderLayers();
   }
 
   private observeSnapshot(snapshot: CombatSnapshot): void {
@@ -372,8 +553,14 @@ export class Arena {
       this.playerAttackRecovery = 0.24;
       this.playerRecoveryCard = previous.activeCard;
     }
-    if (enemyLoss > 0) this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `PARRY  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
-    if (playerLoss > 0) this.triggerHit(this.player, this.playerDamageLabel, `−${playerLoss}`, '#ffb4a3', 0.4);
+    if (enemyLoss > 0) {
+      this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `PARRY  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
+      this.blood.trigger(new THREE.Vector3(this.enemy.root.position.x - 0.28, 1.38, this.enemy.root.position.z + 0.28), -1);
+    }
+    if (playerLoss > 0) {
+      this.triggerHit(this.player, this.playerDamageLabel, `−${playerLoss}`, '#ffb4a3', 0.4);
+      this.blood.trigger(new THREE.Vector3(this.player.root.position.x + 0.32, 1.38, this.player.root.position.z + 0.3), 1);
+    }
 
     const guardConsumed = previous.phase === 'resolve' && previous.guard > snapshot.guard
       && previous.guard > 0 && !counterWasResolved;
@@ -385,6 +572,7 @@ export class Arena {
       this.contactRing.material.color.set('#88e2d3');
       this.shakeStrength = 0.018;
       this.shakeRemaining = 0.12;
+      this.sparks.trigger(new THREE.Vector3(-0.55, 1.32, 0.42));
     }
     if (counter) {
       this.counterPose = 0.42;
@@ -443,6 +631,8 @@ export class Arena {
     if (this.shakeRemaining === 0) this.shakeStrength = 0;
     this.advanceSprite(this.enemyDamageLabel, delta);
     this.advanceSprite(this.playerDamageLabel, delta);
+    this.blood.update(delta, this.reducedMotion.matches);
+    this.sparks.update(delta, this.reducedMotion.matches);
   }
 
   private updateFeedbackSprites(): void {
@@ -461,6 +651,50 @@ export class Arena {
     this.clearSprite(this.enemyDamageLabel);
     this.clearSprite(this.playerDamageLabel);
     this.contactRing.visible = false;
+    this.blood.clear();
+    this.sparks.clear();
+    this.letterboxAmount = 0;
+  }
+
+  private updateLetterbox(snapshot: CombatSnapshot, delta: number): void {
+    const active = snapshot.phase === 'counter' || this.counterResolvedPhase || this.counterPose > 0;
+    const target = active ? 1 : 0;
+    if (this.reducedMotion.matches) this.letterboxAmount = target;
+    else {
+      const speed = target > this.letterboxAmount ? 5.8 : 8.2;
+      this.letterboxAmount = THREE.MathUtils.clamp(this.letterboxAmount + Math.sign(target - this.letterboxAmount) * speed * delta, 0, 1);
+    }
+    const eased = 1 - Math.pow(1 - this.letterboxAmount, 3);
+    this.topBar.position.x = (1 - eased) * 2.32;
+    this.bottomBar.position.x = -(1 - eased) * 2.32;
+    this.topBar.visible = this.bottomBar.visible = this.letterboxAmount > 0.001;
+  }
+
+  private renderLayers(): void {
+    this.renderer.info.reset();
+    this.renderer.autoClear = true;
+    this.camera.layers.set(WORLD_LAYER);
+    this.camera.layers.enable(ACTOR_LAYER);
+    this.renderer.render(this.scene, this.camera);
+
+    this.renderer.autoClear = false;
+    if (this.letterboxAmount > 0.001) this.renderer.render(this.letterboxScene, this.letterboxCamera);
+
+    const background = this.scene.background;
+    this.scene.background = null;
+    this.renderer.clearDepth();
+    this.camera.layers.set(ACTOR_LAYER);
+    this.renderer.render(this.scene, this.camera);
+
+    this.renderer.clearDepth();
+    this.camera.layers.set(EFFECT_LAYER);
+    this.renderer.render(this.scene, this.camera);
+    this.scene.background = background;
+    this.renderer.autoClear = true;
+    this.canvas.dataset.drawCalls = String(this.renderer.info.render.calls);
+    this.canvas.dataset.triangles = String(this.renderer.info.render.triangles);
+    this.canvas.dataset.geometries = String(this.renderer.info.memory.geometries);
+    this.canvas.dataset.textures = String(this.renderer.info.memory.textures);
   }
 
   private advanceSprite(label: FeedbackSprite, delta: number): void {
@@ -532,6 +766,9 @@ export class Arena {
     });
     this.enemyDamageLabel.material.map?.dispose();
     this.playerDamageLabel.material.map?.dispose();
+    this.topBar.geometry.dispose();
+    this.topBar.material.dispose();
+    this.bottomBar.material.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }
