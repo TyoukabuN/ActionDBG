@@ -163,8 +163,8 @@ export class Arena {
   private readonly cameraLookTarget = new THREE.Vector3();
   private readonly letterboxScene = new THREE.Scene();
   private readonly letterboxCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 2);
-  private readonly topBar: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
-  private readonly bottomBar: THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>;
+  private readonly topBar: THREE.Mesh<THREE.ShapeGeometry, THREE.MeshBasicMaterial>;
+  private readonly bottomBar: THREE.Mesh<THREE.ShapeGeometry, THREE.MeshBasicMaterial>;
   private readonly player: Fighter;
   private readonly enemy: Fighter;
   private readonly owned: THREE.Object3D[] = [];
@@ -225,12 +225,19 @@ export class Arena {
     this.contactRing.layers.set(EFFECT_LAYER);
     this.scene.add(this.contactRing);
 
-    const barGeometry = new THREE.PlaneGeometry(2.32, 0.34);
-    const barMaterial = new THREE.MeshBasicMaterial({ color: '#070707', transparent: true, opacity: 0.98, depthTest: false, depthWrite: false });
-    this.topBar = new THREE.Mesh(barGeometry, barMaterial);
-    this.bottomBar = new THREE.Mesh(barGeometry, barMaterial.clone());
-    this.topBar.position.set(2.32, 0.83, -1);
-    this.bottomBar.position.set(-2.32, -0.83, -1);
+    // Deliberately oversized, asymmetric trapezoids read as manga panels even
+    // against the already-dark UI. Their inner edges angle in opposite ways.
+    const topShape = new THREE.Shape();
+    topShape.moveTo(-1.34, 0.25); topShape.lineTo(1.34, 0.25);
+    topShape.lineTo(1.34, -0.25); topShape.lineTo(-1.34, -0.17); topShape.closePath();
+    const bottomShape = new THREE.Shape();
+    bottomShape.moveTo(-1.34, -0.25); bottomShape.lineTo(1.34, -0.25);
+    bottomShape.lineTo(1.34, 0.17); bottomShape.lineTo(-1.34, 0.25); bottomShape.closePath();
+    const barMaterial = new THREE.MeshBasicMaterial({ color: '#000000', depthTest: false, depthWrite: false });
+    this.topBar = new THREE.Mesh(new THREE.ShapeGeometry(topShape), barMaterial);
+    this.bottomBar = new THREE.Mesh(new THREE.ShapeGeometry(bottomShape), barMaterial.clone());
+    this.topBar.position.set(2.68, 0.76, -1);
+    this.bottomBar.position.set(-2.68, -0.76, -1);
     this.letterboxScene.add(this.topBar, this.bottomBar);
     this.letterboxCamera.position.z = 1;
 
@@ -661,12 +668,12 @@ export class Arena {
     const target = active ? 1 : 0;
     if (this.reducedMotion.matches) this.letterboxAmount = target;
     else {
-      const speed = target > this.letterboxAmount ? 5.8 : 8.2;
+      const speed = target > this.letterboxAmount ? 3.6 : 5.2;
       this.letterboxAmount = THREE.MathUtils.clamp(this.letterboxAmount + Math.sign(target - this.letterboxAmount) * speed * delta, 0, 1);
     }
     const eased = 1 - Math.pow(1 - this.letterboxAmount, 3);
-    this.topBar.position.x = (1 - eased) * 2.32;
-    this.bottomBar.position.x = -(1 - eased) * 2.32;
+    this.topBar.position.x = (1 - eased) * 2.68;
+    this.bottomBar.position.x = -(1 - eased) * 2.68;
     this.topBar.visible = this.bottomBar.visible = this.letterboxAmount > 0.001;
   }
 
