@@ -9,6 +9,7 @@ test('history disclosure preserves keyboard control and queued costs show AP res
   await page.clock.install({ time: clockStart });
   await page.clock.pauseAt(clockStart);
   await page.goto('./');
+  await page.getByTestId('control-mode').click();
   const history = page.locator('#history-panel');
   await expect(history).not.toHaveAttribute('open', '');
   const summary = history.locator('summary');
@@ -45,6 +46,7 @@ test('real keyboard cards share AP with Counter and cancel the incoming hit', as
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => { if (message.type() === 'error') errors.push(message.text()); });
   await page.goto('./');
+  await page.getByTestId('control-mode').click();
   await page.getByTestId('start').click();
   await phase(page, 'planning');
   await page.keyboard.press('1');
@@ -65,6 +67,7 @@ test('real keyboard cards share AP with Counter and cancel the incoming hit', as
 
 test('expiry submits ordered mouse queue, cooldown blocks next round, and five restarts reset', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('control-mode').click();
   await page.getByTestId('start').click();
   await phase(page, 'planning');
   await page.getByTestId('card-heavy').click();
@@ -89,6 +92,7 @@ test('expiry submits ordered mouse queue, cooldown blocks next round, and five r
 
 test('blur freezes countdown and input; canvas and HUD fit a smaller desktop', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('control-mode').click();
   await page.getByTestId('start').click();
   await phase(page, 'planning');
   await page.evaluate(() => window.dispatchEvent(new Event('blur')));
@@ -134,6 +138,7 @@ test('blur freezes countdown and input; canvas and HUD fit a smaller desktop', a
 
 test('attack-first strategy wins; idle play loses and can immediately retry', async ({ page }) => {
   await page.goto('./');
+  await page.getByTestId('control-mode').click();
   await page.getByTestId('start').click();
   for (let round = 1; round <= 5; round++) {
     await phase(page, 'planning');
@@ -161,4 +166,104 @@ test('attack-first strategy wins; idle play loses and can immediately retry', as
   await page.getByTestId('start').click();
   await phase(page, 'telegraph');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+});
+
+// QTE cases use the public buttons/keys and a browser clock, never a state hook.
+async function openQte(page: Page) {
+  const now = new Date('2026-10-13T00:00:00Z');
+  await page.clock.install({ time: now });
+  await page.clock.pauseAt(now);
+  await page.goto('./');
+  await expect(page.getByTestId('control-mode')).toHaveText('Cinematic QTE');
+  await page.getByTestId('start').click();
+  await page.clock.runFor(1300);
+  await phase(page, 'planning');
+}
+
+test('QTE buttons play directly, resume time, and keyboard counter changes the camera', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await openQte(page);
+  const canvas = page.getByTestId('canvas');
+  await expect(canvas).toHaveAttribute('data-shot', 'decision');
+  const decisionCamera = await canvas.getAttribute('data-camera-position');
+  const time = Number(await page.getByTestId('timer').textContent());
+  await expect(page.getByTestId('control-mode')).toBeDisabled();
+  await page.getByTestId('card-quick').click();
+  await phase(page, 'acting');
+  await expect(page.getByTestId('ap')).toHaveText('2');
+  await page.clock.runFor(250);
+  await expect(canvas).toHaveAttribute('data-shot', 'quick-strike');
+  expect(await canvas.getAttribute('data-camera-position')).not.toBe(decisionCamera);
+  await page.clock.runFor(350);
+  await phase(page, 'planning');
+  expect(Number(await page.getByTestId('timer').textContent())).toBeGreaterThanOrEqual(time - .2);
+  await expect(page.getByTestId('card-quick')).toBeDisabled();
+  await expect(page.locator('#enemy-hp')).toHaveText('11 / 12');
+  await page.getByTestId('submit').click();
+  await phase(page, 'counter');
+  await page.clock.runFor(400);
+  await expect(canvas).toHaveAttribute('data-shot', 'counter-window');
+  await page.keyboard.press('4');
+  await phase(page, 'resolve');
+  await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
+  await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+  await page.clock.runFor(220);
+  await expect(canvas).toHaveAttribute('data-shot', 'parry');
+  await page.clock.runFor(500);
+  await expect(page.locator('#round')).toHaveText('02');
+  for (let i = 0; i < 5; i++) {
+    await page.keyboard.press('r');
+    await expect(page.locator('#round')).toHaveText('01');
+    await expect(page.getByTestId('ap')).toHaveText('3');
+    await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+    await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
+  }
+  expect(errors).toEqual([]);
+});
+
+test('QTE native keyboard buttons and heavy/guard shots respect pause and expiry', async ({ page }) => {
+  await openQte(page);
+  const canvas = page.getByTestId('canvas');
+  await page.getByTestId('card-heavy').focus();
+  await page.keyboard.press('Enter');
+  await phase(page, 'acting');
+  await page.clock.runFor(250);
+  await expect(canvas).toHaveAttribute('data-shot', 'heavy-strike');
+  await page.clock.runFor(350);
+  await phase(page, 'planning');
+  await page.keyboard.press('3');
+  await phase(page, 'acting');
+  await page.clock.runFor(220);
+  await expect(canvas).toHaveAttribute('data-shot', 'guard');
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  const before = await canvas.getAttribute('data-camera-position');
+  const timer = await page.getByTestId('timer').textContent();
+  await page.clock.runFor(1500);
+  expect(await canvas.getAttribute('data-camera-position')).toBe(before);
+  expect(await page.getByTestId('timer').textContent()).toBe(timer);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.clock.runFor(1100);
+  await expect(page.locator('#round')).toHaveText('02');
+  await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+  await page.clock.runFor(1800);
+  await phase(page, 'planning');
+  await page.clock.runFor(4100);
+  await phase(page, 'counter');
+  await page.clock.runFor(2700);
+  await expect(page.locator('#round')).toHaveText('03');
+  await expect(page.locator('#player-hp')).toHaveText('6 / 10');
+});
+
+test('reduced motion keeps a stable QTE overview', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await openQte(page);
+  const canvas = page.getByTestId('canvas');
+  const position = await canvas.getAttribute('data-camera-position');
+  await page.keyboard.press('1');
+  await page.clock.runFor(250);
+  await phase(page, 'acting');
+  await expect(canvas).toHaveAttribute('data-shot', 'overview');
+  expect(await canvas.getAttribute('data-camera-position')).toBe(position);
 });

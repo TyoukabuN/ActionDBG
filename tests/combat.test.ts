@@ -19,6 +19,95 @@ function playCard(combat: Combat, id: CardId): void {
 }
 
 describe('combat rules', () => {
+  it('supports direct QTE combos, rejects repeated cards, and preserves the saved planning budget', () => {
+    const combat = new Combat('qte');
+    combat.start();
+    advanceUntil(combat, 'planning');
+    expect(combat.snapshot().controlMode).toBe('qte');
+    combat.tick(1);
+    const budget = combat.snapshot().remaining;
+
+    expect(combat.playCard('quick')).toBe(true);
+    expect(combat.playCard('guard')).toBe(false); // Acting input is rejected.
+    combat.tick(0.6);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', ap: 2, remaining: budget - 0.05, enemyHp: 11 });
+    expect(combat.playCard('quick')).toBe(false);
+    expect(combat.playCard('guard')).toBe(true);
+    combat.tick(0.6);
+    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', ap: 1, guard: 2 });
+    // The remaining AP cannot buy another unused ordinary card, so the window closes.
+    expect(combat.playCard('heavy')).toBe(false);
+    expect(combat.playCard('quick')).toBe(false);
+    expect(combat.snapshot().phase).toBe('resolve');
+  });
+
+  it('expires a resumed QTE window using its remaining time, while action playback does not spend it', () => {
+    const combat = new Combat('qte');
+    combat.start();
+    advanceUntil(combat, 'planning');
+    combat.tick(2);
+    const budget = combat.snapshot().remaining;
+    expect(combat.playCard('guard')).toBe(true);
+    combat.tick(0.55);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', remaining: budget, guard: 2 });
+    combat.tick(budget);
+    expect(combat.snapshot().phase).toBe('counter');
+  });
+
+  it('submits a QTE counter immediately and rejects paused actions, then restart keeps the selected mode', () => {
+    const combat = new Combat('qte');
+    combat.start();
+    advanceUntil(combat, 'planning');
+    expect(combat.playCard('quick')).toBe(true);
+    combat.tick(0.55);
+    expect(combat.snapshot().phase).toBe('planning');
+    combat.skip();
+    expect(combat.snapshot().phase).toBe('counter');
+    combat.setPaused(true);
+    expect(combat.playCard('counter')).toBe(false);
+    combat.setPaused(false);
+    expect(combat.playCard('counter')).toBe(true);
+    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', ap: 0, enemyHp: 9 });
+    combat.restart();
+    expect(combat.snapshot()).toMatchObject({ phase: 'telegraph', controlMode: 'qte', round: 1, ap: 3 });
+  });
+
+  it('prevents a pre-existing queue from being consumed by direct QTE play', () => {
+    const combat = new Combat('qte');
+    combat.start();
+    advanceUntil(combat, 'planning');
+    expect(combat.toggleCard('quick')).toBe(false);
+    expect(combat.snapshot().queue).toEqual([]);
+    expect(combat.playCard('quick')).toBe(true);
+  });
+
+  it('cancels the QTE chain on lethal damage', () => {
+    const combat = new Combat('qte');
+    combat.start();
+    // Heavy and quick in round one leave the enemy at eight HP; two later
+    // heavy/quick combinations finish it without ever repeating a card in a round.
+    for (let round = 0; round < 6 && combat.snapshot().phase !== 'victory'; round++) {
+      advanceUntil(combat, 'planning');
+      if (combat.availability('heavy') === null) {
+        expect(combat.playCard('heavy')).toBe(true);
+        combat.tick(0.55);
+      }
+      if (combat.snapshot().phase === 'planning' && combat.availability('quick') === null) {
+        expect(combat.playCard('quick')).toBe(true);
+        combat.tick(0.55);
+      }
+      if (combat.snapshot().phase === 'planning' && combat.availability('guard') === null) {
+        expect(combat.playCard('guard')).toBe(true);
+        combat.tick(0.55);
+      }
+      if (combat.snapshot().phase === 'planning') combat.skip();
+      if (combat.snapshot().phase === 'counter') combat.skip();
+      if (combat.snapshot().phase === 'resolve') combat.tick(0.7);
+    }
+    expect(combat.snapshot()).toMatchObject({ phase: 'victory', enemyHp: 0, activeCard: null, committed: [] });
+    expect(combat.playCard('quick')).toBe(false);
+  });
+
   it('automatically submits both planning and counter previews on expiry, once only', () => {
     const combat = new Combat();
     combat.start();

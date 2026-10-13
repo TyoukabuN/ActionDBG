@@ -1,0 +1,13 @@
+# Cinematic QTE — Design
+
+Ready; Full track; 2026-10-13. Upstream: [PRD](prd.md).
+
+Combat owns all decisions, costs and outcomes, independent of presentation. Add `ControlMode = 'queue' | 'qte'`, optional `Combat(mode = 'queue')`, snapshot `controlMode`, and `playCard(id): boolean`. The browser defaults to QTE; the constructor default preserves existing rule consumers. `playCard` accepts only an available, unqueued card in QTE planning/counter and submits it once. Repeated/acting/paused/terminal inputs are rejected. Queue APIs retain their behavior for the comparison mode.
+
+Capture remaining planning seconds when a QTE action starts. On completed ordinary action, return to planning with that budget if positive AP, time and an unused eligible ordinary card remain. Otherwise enter the existing bounded counter/resolve path. This requires the resumed planning phase's duration to use its actual starting budget, not the original four seconds. Telegraph resets the budget each round. Playback freezes only that decision budget; visual/action simulation keeps advancing. Counter remains immediate, consumes shared AP and cancels once. Skip/continue ends the ordinary decision sequence. Restart retains the selected mode while clearing all encounter state (FR-01–03).
+
+A small presentation camera director selects authored, same-side poses by phase, active card and observed HP/guard/counter changes. Positions, targets and FOV differ for establishing, threat, ordinary decision, quick/heavy action, guard, counter, enemy strike, impact and terminal shots. Bounded real delta drives transitions; a brief impact/parry hold survives phase advancement. No camera event mutates Combat. Decision poses settle and remain stable; pause freezes pose and hold timers; reset discards previous transitions; reduced motion uses the original overview without dolly/shake. Arena publishes current shot as a canvas data attribute for accessible inspection/tests, with no gameplay-control hook (FR-04–05).
+
+HTML buttons share one `activateCard` adapter with keyboard input. QTE uses direct play; queue mode toggles selection. UI uses snapshot availability and costs, explicit `Play now`, `Continue` and counter prompts. Mode changes replace the Combat instance only in ready/terminal states, preserve focus gating and reset render baselines. Existing native history interaction remains independent.
+
+No new dependency, asset or draw loop. Camera uses bounded interpolation and reusable vectors; FOV updates only on change. Risks: close shots hide threat, event holds leak into restart, QTE resets time or permits repeated cards. Unit/browser tests and actual motion/viewport capture cover these, while human perception of cinematic quality remains a playtest question.

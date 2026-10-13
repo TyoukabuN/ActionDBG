@@ -1,4 +1,5 @@
 export type CardId = 'quick' | 'heavy' | 'guard' | 'counter';
+export type ControlMode = 'queue' | 'qte';
 
 export type Phase =
   | 'ready'
@@ -27,6 +28,7 @@ export const CARDS: readonly CardDefinition[] = [
 ];
 
 export interface CombatSnapshot {
+  controlMode: ControlMode;
   phase: Phase;
   round: number;
   playerHp: number;
@@ -62,6 +64,8 @@ const SLOW_MOTION = 0.15;
 
 /** Deterministic combat rules. `tick` receives elapsed real-world seconds. */
 export class Combat {
+  constructor(private readonly controlMode: ControlMode = 'queue') {}
+
   private phase: Phase = 'ready';
   private round = 1;
   private playerHp = 10;
@@ -83,6 +87,8 @@ export class Combat {
   private usedRound: Partial<Record<CardId, number>> = {};
   private enemyAttackCancelled = false;
   private started = false;
+  private planningDuration = PLAN_SECONDS;
+  private savedPlanningBudget = 0;
 
   start(): void {
     this.reset();
@@ -100,6 +106,8 @@ export class Combat {
     this.maxAp = DEFAULT_ACTION_POINTS;
     this.ap = this.maxAp;
     this.remaining = LIGHT_TELEGRAPH_SECONDS;
+    this.planningDuration = PLAN_SECONDS;
+    this.savedPlanningBudget = 0;
     this.queue = [];
     this.committed = [];
     this.activeCard = null;
@@ -147,6 +155,7 @@ export class Combat {
   }
 
   toggleCard(id: CardId): boolean {
+    if (this.controlMode === 'qte') return false;
     if (!this.started || this.paused) return false;
     if (this.phase !== 'planning' && this.phase !== 'counter') return false;
     if (!CARD_BY_ID[id] || this.availability(id) !== null) return false;
@@ -165,6 +174,36 @@ export class Combat {
     const reserved = this.queue.reduce((sum, cardId) => sum + CARD_BY_ID[cardId].cost, 0);
     if (reserved + CARD_BY_ID[id].cost > this.ap) return false;
     this.queue.push(id);
+    return true;
+  }
+
+  /** Immediately plays one available card in QTE mode. */
+  playCard(id: CardId): boolean {
+    if (this.controlMode !== 'qte' || !this.started || this.paused || this.isTerminal()) return false;
+    if (this.queue.length > 0 || !CARD_BY_ID[id] || this.availability(id) !== null) return false;
+
+    if (this.phase === 'counter') {
+      if (id !== 'counter') return false;
+      this.ap -= CARD_BY_ID.counter.cost;
+      this.usedRound.counter = this.round;
+      this.readyRound.counter = this.round + CARD_BY_ID.counter.cooldownRounds + 1;
+      this.enemyAttackCancelled = true;
+      this.dealDamage('enemy', CARD_BY_ID.counter.damage, 'Counter');
+      if (!this.isTerminal()) {
+        this.setPhase('resolve', RESOLVE_SECONDS);
+        this.addLog('Counter cancels the incoming attack.');
+      }
+      return true;
+    }
+
+    if (this.phase !== 'planning' || id === 'counter') return false;
+    this.savedPlanningBudget = this.remaining;
+    this.ap -= CARD_BY_ID[id].cost;
+    this.committed = [id];
+    this.actionIndex = 0;
+    this.activeCard = id;
+    this.setPhase('acting', ACTION_BEAT_SECONDS);
+    this.addLog(`Committed: ${CARD_BY_ID[id].name}.`);
     return true;
   }
 
@@ -243,6 +282,7 @@ export class Combat {
       cooldowns[id] = Math.max(0, ready - this.round - (used ? 1 : 0));
     }
     return {
+      controlMode: this.controlMode,
       phase: this.phase,
       round: this.round,
       playerHp: this.playerHp,
@@ -267,7 +307,7 @@ export class Combat {
   private phaseDuration(): number | null {
     switch (this.phase) {
       case 'telegraph': return this.enemyAttack === 'light' ? LIGHT_TELEGRAPH_SECONDS : HEAVY_TELEGRAPH_SECONDS;
-      case 'planning': return PLAN_SECONDS;
+      case 'planning': return this.planningDuration;
       case 'acting': return ACTION_BEAT_SECONDS;
       case 'counter': return COUNTER_SECONDS;
       case 'resolve': return RESOLVE_SECONDS;
@@ -333,7 +373,11 @@ export class Combat {
     } else {
       this.committed = [];
       this.activeCard = null;
-      this.beginCounterOrResolve();
+      if (this.controlMode === 'qte' && this.canResumePlanning()) {
+        this.setPhase('planning', this.savedPlanningBudget);
+      } else {
+        this.beginCounterOrResolve();
+      }
     }
   }
 
@@ -407,6 +451,14 @@ export class Combat {
     this.phase = phase;
     this.phaseElapsed = 0;
     this.remaining = duration;
+    if (phase === 'planning') this.planningDuration = duration;
+  }
+
+  private canResumePlanning(): boolean {
+    if (this.savedPlanningBudget <= 0 || this.ap <= 0) return false;
+    return (['quick', 'heavy', 'guard'] as const).some((id) =>
+      !this.isOnCooldown(id) && this.ap >= CARD_BY_ID[id].cost,
+    );
   }
 
   private isOnCooldown(id: CardId): boolean {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { CombatSnapshot } from './combat';
+import { CameraDirector } from './camera';
 
 type Fighter = {
   root: THREE.Group;
@@ -20,14 +21,13 @@ type FeedbackSprite = {
   duration: number;
 };
 
-const CAMERA_HOME = new THREE.Vector3(-8, 4.2, 8);
-const CAMERA_TARGET = new THREE.Vector3(0.4, 1.4, 0);
-
 /** Procedural duel presentation. The simulation owns all outcomes; this class only animates snapshots. */
 export class Arena {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera: THREE.PerspectiveCamera;
+  private readonly cameraDirector = new CameraDirector();
+  private readonly cameraLookTarget = new THREE.Vector3();
   private readonly player: Fighter;
   private readonly enemy: Fighter;
   private readonly owned: THREE.Object3D[] = [];
@@ -46,6 +46,7 @@ export class Arena {
   private enemyAttackRecovery = 0;
   private playerRecoveryCard: CombatSnapshot['activeCard'] = null;
   private counterPose = 0;
+  private counterResolvedPhase = false;
   private ringRemaining = 0;
   private shakeRemaining = 0;
   private shakeStrength = 0;
@@ -62,8 +63,8 @@ export class Arena {
     this.scene.background = new THREE.Color('#18292c');
     this.scene.fog = new THREE.Fog('#18292c', 13, 32);
     this.camera = new THREE.PerspectiveCamera(36, 1, 0.1, 60);
-    this.camera.position.copy(CAMERA_HOME);
-    this.camera.lookAt(CAMERA_TARGET);
+    this.camera.position.set(-8, 4.2, 8);
+    this.camera.lookAt(0.4, 1.4, 0);
 
     this.scene.add(new THREE.HemisphereLight('#fff0d4', '#51433d', 2.25));
     const sun = new THREE.DirectionalLight('#ffe3af', 4.1);
@@ -196,7 +197,7 @@ export class Arena {
     sprite.renderOrder = 3;
     sprite.visible = false;
     this.scene.add(sprite);
-    return { canvas, context, sprite, material, baseY: 2.6, remaining: 0, duration: 0.38 };
+    return { canvas, context, sprite, material, baseY: 2.22, remaining: 0, duration: 0.38 };
   }
 
   render(snapshot: CombatSnapshot, realSeconds = 0): void {
@@ -268,7 +269,7 @@ export class Arena {
       enemy.rightArm.rotation.x = -0.32 - hold * 0.12;
       enemy.sword.rotation.z = -0.76 - hold * 0.08;
     }
-    const counterResolved = this.counterPose > 0;
+    const counterResolved = this.counterResolvedPhase || this.counterPose > 0;
     if (counterResolved) {
       const parry = this.smoothstep(0, 0.18, this.counterPose);
       player.root.position.x = -2.35 + parry * 0.25;
@@ -324,10 +325,18 @@ export class Arena {
     enemy.armor.emissiveIntensity = this.enemyFlash * 2.25;
     this.updateFeedbackSprites();
     this.hitLight.intensity = Math.max(this.playerFlash, this.enemyFlash, this.ringRemaining / 0.24) * 2.7;
+    const cameraPose = this.cameraDirector.update(snapshot, delta, this.reducedMotion.matches);
     const shake = this.reducedMotion.matches ? 0 : this.shakeStrength * this.shakeEnvelope();
-    this.camera.position.copy(CAMERA_HOME);
+    this.camera.position.set(...cameraPose.position);
     this.camera.position.x += Math.sin(t * 49) * shake;
-    this.camera.lookAt(CAMERA_TARGET);
+    this.cameraLookTarget.set(...cameraPose.target);
+    this.camera.lookAt(this.cameraLookTarget);
+    if (this.camera.fov !== cameraPose.fov) {
+      this.camera.fov = cameraPose.fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.canvas.dataset.shot = cameraPose.id;
+    this.canvas.dataset.cameraPosition = cameraPose.position.map((value) => value.toFixed(2)).join(',');
     if (this.ringRemaining > 0) {
       const progress = 1 - this.ringRemaining / 0.24;
       this.contactRing.visible = true;
@@ -342,6 +351,8 @@ export class Arena {
   private observeSnapshot(snapshot: CombatSnapshot): void {
     const previous = this.previousSnapshot;
     this.previousSnapshot = snapshot;
+    const counterWasResolved = this.counterResolvedPhase;
+    if (snapshot.phase !== 'resolve') this.counterResolvedPhase = false;
     if (!previous) return;
 
     // A reset can be triggered while paused or before any animation time has
@@ -355,6 +366,7 @@ export class Arena {
     const playerLoss = previous.playerHp - snapshot.playerHp;
     const counter = enemyLoss > 0 && previous.phase === 'counter'
       && (snapshot.phase === 'resolve' || snapshot.phase === 'victory');
+    if (counter && snapshot.phase === 'resolve') this.counterResolvedPhase = true;
     if (enemyLoss > 0 && previous.phase === 'acting'
       && (previous.activeCard === 'quick' || previous.activeCard === 'heavy')) {
       this.playerAttackRecovery = 0.24;
@@ -363,7 +375,8 @@ export class Arena {
     if (enemyLoss > 0) this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `PARRY  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
     if (playerLoss > 0) this.triggerHit(this.player, this.playerDamageLabel, `−${playerLoss}`, '#ffb4a3', 0.4);
 
-    const guardConsumed = previous.guard > snapshot.guard && previous.guard > 0;
+    const guardConsumed = previous.phase === 'resolve' && previous.guard > snapshot.guard
+      && previous.guard > 0 && !counterWasResolved;
     if (playerLoss > 0 || guardConsumed) this.enemyAttackRecovery = 0.18;
     if (guardConsumed && playerLoss === 0) {
       this.showFeedback(this.playerDamageLabel, 'BLOCK', '#a9eee0', this.player.root.position.x, this.player.root.position.z);
@@ -443,6 +456,7 @@ export class Arena {
     this.playerAttackRecovery = 0; this.enemyAttackRecovery = 0;
     this.playerRecoveryCard = null;
     this.counterPose = 0; this.ringRemaining = 0;
+    this.counterResolvedPhase = false;
     this.shakeRemaining = 0; this.shakeStrength = 0;
     this.clearSprite(this.enemyDamageLabel);
     this.clearSprite(this.playerDamageLabel);

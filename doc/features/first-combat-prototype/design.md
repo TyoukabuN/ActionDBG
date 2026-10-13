@@ -44,3 +44,7 @@ Keep the current camera, warm stone arena and teal/rust faction colors. Replace 
 Improve anticipation, attack arcs, Guard's shield posture and Counter response using presentation-only animation. Apply hit flashes, short recoil and transient damage/block feedback to observed snapshot changes, exactly once per outcome. `Arena.render(snapshot, realSeconds = 0)` may consume a bounded render delta for feedback; the adapter passes this delta while the pure Combat tick/rules remain unchanged. Pause freezes effects, restart clears them, and reduced-motion preferences suppress nonessential shake/motion. No hitstop changes the decision clock, no audio/new asset services are introduced, and no premium/AAA quality claim is made.
 
 Validate existing rules and real-input flows, plus closed/open history, AP preview, readability at 1280×800 and a larger desktop, no actor/HUD overlap, and captures of planning/counter/impact/terminal states. Capture a short active sequence for animation review. Reuse existing test infrastructure and record findings/evidence in verification; do not copy the bundled scaffold over the game.
+
+### Cinematic QTE follow-up
+
+The fixed-camera and queue-only behavior above describes the earlier milestone. The current presentation and default controls are superseded by [Cinematic QTE Design](../cinematic-qte/design.md): authored event/action shots and immediate button/key play, with queue planning retained as a comparison mode. Existing costs, damage, counter eligibility and cooldowns remain unchanged.

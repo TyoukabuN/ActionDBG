@@ -12,6 +12,7 @@ This is a game prototyping project. Prefer playable results, clear rules, simple
 
 The original [game vision](design/protoTypeImages.md) describes these directions:
 
+- **Battle is a directed performance.** Camera shots follow wind-ups, techniques and their consequences. Limited-time screen buttons and keyboard inputs make card play feel like a QTE within the unfolding action.
 - **Cards express combat actions.** Attacks, techniques, and spells become cards, connecting tactical choices to actions visible in the scene.
 - **Slow motion creates a decision window.** During card-play phases, combat slows so the player can observe the opponent's action and choose a response under time pressure.
 - **Character attributes shape decisions.** Reaction speed influences the decision-window duration; attack speed influences the available action resource budget. Exact formulas remain open.
