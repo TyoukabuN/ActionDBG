@@ -1,7 +1,24 @@
 import * as THREE from 'three';
 import type { CombatSnapshot } from './combat';
 
-type Fighter = { root: THREE.Group; torso: THREE.Group; sword: THREE.Group; leftArm: THREE.Group; rightArm: THREE.Group; shield: THREE.Group; color: THREE.Color };
+type Fighter = {
+  root: THREE.Group;
+  torso: THREE.Group;
+  sword: THREE.Group;
+  leftArm: THREE.Group;
+  rightArm: THREE.Group;
+  shield: THREE.Group;
+  armor: THREE.MeshStandardMaterial;
+};
+type FeedbackSprite = {
+  canvas: HTMLCanvasElement;
+  context: CanvasRenderingContext2D;
+  sprite: THREE.Sprite;
+  material: THREE.SpriteMaterial;
+  baseY: number;
+  remaining: number;
+  duration: number;
+};
 
 const CAMERA_HOME = new THREE.Vector3(-8, 4.2, 8);
 const CAMERA_TARGET = new THREE.Vector3(0.4, 1.4, 0);
@@ -16,10 +33,27 @@ export class Arena {
   private readonly owned: THREE.Object3D[] = [];
   private disposed = false;
   private readonly hitLight: THREE.PointLight;
+  private readonly reducedMotion: MediaQueryList;
+  private readonly enemyDamageLabel: FeedbackSprite;
+  private readonly playerDamageLabel: FeedbackSprite;
+  private readonly contactRing: THREE.Mesh<THREE.TorusGeometry, THREE.MeshBasicMaterial>;
+  private previousSnapshot: CombatSnapshot | null = null;
+  private enemyFlash = 0;
+  private playerFlash = 0;
+  private enemyRecoil = 0;
+  private playerRecoil = 0;
+  private playerAttackRecovery = 0;
+  private enemyAttackRecovery = 0;
+  private playerRecoveryCard: CombatSnapshot['activeCard'] = null;
+  private counterPose = 0;
+  private ringRemaining = 0;
+  private shakeRemaining = 0;
+  private shakeStrength = 0;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -38,6 +72,13 @@ export class Arena {
     this.scene.add(sun);
     const rim = new THREE.DirectionalLight('#69d1c5', 2.7); rim.position.set(5, 5, -5); this.scene.add(rim);
     this.hitLight = new THREE.PointLight('#ffb16f', 0, 8, 2); this.hitLight.position.set(0, 2, 1); this.scene.add(this.hitLight);
+    this.contactRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.34, 0.035, 6, 28),
+      new THREE.MeshBasicMaterial({ color: '#f3d9a5', transparent: true, opacity: 0, depthWrite: false }),
+    );
+    this.contactRing.visible = false;
+    this.contactRing.renderOrder = 2;
+    this.scene.add(this.contactRing);
 
     const floorMaterial = new THREE.MeshStandardMaterial({ color: '#9b765b', roughness: 0.86 });
     const floor = new THREE.Mesh(new THREE.CylinderGeometry(7.4, 8.1, 0.36, 64), floorMaterial);
@@ -61,6 +102,8 @@ export class Arena {
     this.enemy = this.makeFighter('#d9624d', '#dfb68a', false);
     this.enemy.root.position.set(2.25, 0, -0.5); this.enemy.root.rotation.y = -Math.PI / 2;
     this.scene.add(this.player.root, this.enemy.root);
+    this.enemyDamageLabel = this.makeFeedbackSprite();
+    this.playerDamageLabel = this.makeFeedbackSprite();
     this.owned.push(floor, top, ring, ...this.player.root.children, ...this.enemy.root.children);
     this.resize();
   }
@@ -82,7 +125,7 @@ export class Arena {
 
   private makeFighter(armor: string, skin: string, teal: boolean): Fighter {
     const root = new THREE.Group();
-    const metal = new THREE.MeshStandardMaterial({ color: armor, roughness: 0.42, metalness: 0.33 });
+    const metal = new THREE.MeshStandardMaterial({ color: armor, roughness: 0.42, metalness: 0.33, emissive: '#ffffff', emissiveIntensity: 0 });
     const trim = new THREE.MeshStandardMaterial({ color: teal ? '#f0ce91' : '#6a332e', roughness: 0.38, metalness: 0.48 });
     const flesh = new THREE.MeshStandardMaterial({ color: skin, roughness: 0.8 });
     const dark = new THREE.MeshStandardMaterial({ color: '#302d30', roughness: 0.72 });
@@ -96,12 +139,34 @@ export class Arena {
     part(new THREE.BoxGeometry(0.38, 0.18, 0.62), trim, legs, [0.24, 0.17, 0.1]);
     const torso = new THREE.Group(); torso.position.y = 1.35; root.add(torso);
     part(new THREE.CapsuleGeometry(0.49, 0.53, 5, 12), metal, torso, [0, 0.2, 0], [1, 0.83, 0.78]);
+    // Broad pauldrons and a layered back silhouette keep the fighters readable
+    // at the fixed diagonal camera distance without changing their footprint.
+    part(new THREE.SphereGeometry(0.32, 12, 9), metal, torso, [-0.51, 0.56, 0], [1.25, 0.72, 0.94]);
+    part(new THREE.SphereGeometry(0.32, 12, 9), metal, torso, [0.51, 0.56, 0], [1.25, 0.72, 0.94]);
+    part(new THREE.TorusGeometry(0.47, 0.075, 8, 24), trim, torso, [0, 0.05, 0], [1.06, 0.82, 0.92]);
     part(new THREE.TorusGeometry(0.43, 0.07, 8, 20), trim, torso, [0, -0.07, 0]);
     part(new THREE.SphereGeometry(0.3, 16, 12), flesh, torso, [0, 0.98, 0]);
     part(new THREE.SphereGeometry(0.34, 16, 12), metal, torso, [0, 1.15, 0], [1.13, 0.63, 1.1]);
     part(new THREE.ConeGeometry(0.16, 0.37, 8), trim, torso, [0, 1.53, 0]);
     // A narrow visor makes facing direction readable from the fixed camera.
     part(new THREE.BoxGeometry(0.34, 0.07, 0.08), dark, torso, [0, 1.02, 0.28]);
+    part(new THREE.BoxGeometry(0.44, 0.055, 0.12), trim, torso, [0, 0.95, 0.29]);
+    if (teal) {
+      part(new THREE.ConeGeometry(0.15, 0.68, 5), trim, torso, [0, 1.6, -0.05]);
+      part(new THREE.ConeGeometry(0.08, 0.34, 5), trim, torso, [-0.22, 1.37, -0.04]);
+      part(new THREE.ConeGeometry(0.08, 0.34, 5), trim, torso, [0.22, 1.37, -0.04]);
+    } else {
+      part(new THREE.ConeGeometry(0.1, 0.38, 5), trim, torso, [-0.3, 1.13, 0]);
+      part(new THREE.ConeGeometry(0.1, 0.38, 5), trim, torso, [0.3, 1.13, 0]);
+    }
+    const mantleShape = new THREE.Shape();
+    mantleShape.moveTo(-0.42, 0.55); mantleShape.lineTo(0.42, 0.55);
+    mantleShape.lineTo(0.58, -0.84); mantleShape.lineTo(0.26, -1.12);
+    mantleShape.lineTo(0, -0.93); mantleShape.lineTo(-0.26, -1.12); mantleShape.lineTo(-0.58, -0.84);
+    mantleShape.closePath();
+    const mantleMaterial = new THREE.MeshStandardMaterial({ color: teal ? '#246b69' : '#713a34', roughness: 0.88, side: THREE.DoubleSide });
+    const mantle = part(new THREE.ShapeGeometry(mantleShape), mantleMaterial, torso, [0, 0, -0.3]);
+    mantle.renderOrder = -1;
     const leftArm = new THREE.Group(); leftArm.position.set(-0.48, 0.48, 0); torso.add(leftArm);
     part(new THREE.CapsuleGeometry(0.15, 0.48, 4, 8), metal, leftArm, [0, -0.28, 0]);
     const rightArm = new THREE.Group(); rightArm.position.set(0.48, 0.48, 0); torso.add(rightArm);
@@ -115,11 +180,31 @@ export class Arena {
     part(new THREE.ConeGeometry(0.06, 0.23, 4), bladeMat, sword, [0, 1.72, 0]);
     const shield = new THREE.Group(); shield.position.set(-0.11, -0.52, 0.06); shield.rotation.z = 0.12; leftArm.add(shield);
     part(new THREE.CylinderGeometry(0.33, 0.27, 0.11, 8), trim, shield, [0, -0.05, 0], [1, 1.24, 0.46]);
-    return { root, torso, sword, leftArm, rightArm, shield, color: new THREE.Color(armor) };
+    return { root, torso, sword, leftArm, rightArm, shield, armor: metal };
   }
 
-  render(snapshot: CombatSnapshot): void {
+  private makeFeedbackSprite(): FeedbackSprite {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512; canvas.height = 128;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('2D canvas is unavailable for combat feedback.');
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, opacity: 0 });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(1.62, 0.42, 1);
+    sprite.renderOrder = 3;
+    sprite.visible = false;
+    this.scene.add(sprite);
+    return { canvas, context, sprite, material, baseY: 2.6, remaining: 0, duration: 0.38 };
+  }
+
+  render(snapshot: CombatSnapshot, realSeconds = 0): void {
     if (this.disposed) return;
+    const delta = Number.isFinite(realSeconds) ? Math.min(0.1, Math.max(0, realSeconds)) : 0;
+    // Terminal combat stops simulation, but the final hit feedback should settle.
+    if (!snapshot.paused) this.advanceFeedback(delta);
+    this.observeSnapshot(snapshot);
     const t = snapshot.visualTime;
     const enemy = this.enemy, player = this.player;
     const breathing = Math.sin(t * 2.25);
@@ -130,11 +215,16 @@ export class Arena {
     player.torso.rotation.z = 0;
     player.rightArm.rotation.x = 0;
     player.leftArm.rotation.x = 0;
+    player.leftArm.rotation.z = 0;
     player.sword.rotation.z = -0.2;
     player.shield.rotation.z = 0;
+    player.shield.rotation.x = 0;
     enemy.torso.rotation.z = 0;
     enemy.sword.rotation.z = -0.2;
     enemy.rightArm.rotation.x = 0;
+    enemy.leftArm.rotation.x = 0;
+    enemy.shield.rotation.z = 0;
+    enemy.shield.rotation.x = 0;
     if (snapshot.phase === 'telegraph') {
       const wind = Math.min(1, snapshot.phaseElapsed / (snapshot.enemyAttack === 'heavy' ? 1.15 : 0.72));
       enemy.torso.rotation.z = -0.1 - wind * (snapshot.enemyAttack === 'heavy' ? 0.48 : 0.3);
@@ -148,16 +238,19 @@ export class Arena {
       enemy.sword.rotation.z = -0.2 - wind * 1.1;
       enemy.root.position.x += Math.sin(t * 1.2) * 0.06;
     } else if (snapshot.phase === 'acting') {
-      const elapsed = snapshot.phaseElapsed;
-      const beat = Math.max(0, Math.sin(Math.min(1, elapsed / 0.55) * Math.PI));
+      const progress = Math.min(1, snapshot.phaseElapsed / 0.55);
+      const strike = this.strikeCurve(progress);
       if (snapshot.activeCard === 'guard') {
-        player.leftArm.rotation.x = -beat * 1.1;
-        player.shield.rotation.z = beat * 0.75;
+        const lift = this.smoothstep(0.12, 0.78, progress);
+        player.leftArm.rotation.x = -0.18 - lift * 0.82;
+        player.shield.rotation.z = 0.18 + lift * 0.52;
+        player.shield.rotation.x = -lift * 0.12;
       } else if (snapshot.activeCard) {
-        player.root.position.x = -2.35 + beat * 0.8;
-        player.torso.rotation.z = -beat * (snapshot.activeCard === 'heavy' ? 0.7 : 0.42);
-        player.rightArm.rotation.x = -beat * 0.58;
-        player.sword.rotation.z = -0.2 - beat * 1.05;
+        const anticipation = 1 - this.smoothstep(0, 0.3, progress);
+        player.root.position.x = -2.35 - anticipation * 0.12 + strike * 0.92;
+        player.torso.rotation.z = -anticipation * 0.12 - strike * (snapshot.activeCard === 'heavy' ? 0.68 : 0.4);
+        player.rightArm.rotation.x = -anticipation * 0.45 - strike * 0.52;
+        player.sword.rotation.z = -0.2 - anticipation * 0.8 - strike * 1.05;
       } else {
         player.root.position.x = -2.35;
       }
@@ -170,34 +263,239 @@ export class Arena {
       enemy.torso.rotation.z = 0;
     }
     if (snapshot.phase === 'counter') {
-      enemy.torso.rotation.z = -0.2 - Math.sin(t * 2) * 0.12;
-      enemy.sword.rotation.z = -0.45 - Math.sin(t * 2) * 0.08;
+      const hold = 0.5 + 0.5 * Math.sin(t * 2);
+      enemy.torso.rotation.z = -0.2 - hold * 0.1;
+      enemy.rightArm.rotation.x = -0.32 - hold * 0.12;
+      enemy.sword.rotation.z = -0.76 - hold * 0.08;
     }
-    const roundStart = snapshot.log.map((line) => line.startsWith('Round ') || line.startsWith('Encounter started')).lastIndexOf(true);
-    const counterResolved = snapshot.phase === 'resolve' && snapshot.log.slice(Math.max(0, roundStart)).some((line) => line.includes('Counter cancels the incoming attack'));
+    const counterResolved = this.counterPose > 0;
     if (counterResolved) {
-      player.root.position.x = -2.1;
-      player.torso.rotation.z = -0.16;
-      player.rightArm.rotation.x = -0.65;
-      player.sword.rotation.z = -1.15;
-      enemy.torso.rotation.z = 0.35;
-      enemy.root.position.x = 2.48;
+      const parry = this.smoothstep(0, 0.18, this.counterPose);
+      player.root.position.x = -2.35 + parry * 0.25;
+      player.torso.rotation.z = -0.2 * parry;
+      player.leftArm.rotation.x = -0.9 * parry;
+      player.shield.rotation.z = -0.65 * parry;
+      player.rightArm.rotation.x = -0.55 * parry;
+      player.sword.rotation.z = -1.2 * parry;
+      enemy.torso.rotation.z = 0.38 * parry;
+      enemy.rightArm.rotation.x = 0.25 * parry;
+      enemy.root.position.x = 2.25 + parry * 0.2;
     }
     if (snapshot.phase === 'resolve' && !counterResolved) {
-      const strike = Math.sin(Math.min(1, snapshot.phaseElapsed / 0.65) * Math.PI);
-      enemy.root.position.x -= strike * 1.4;
-      enemy.rightArm.rotation.x = -strike * 1.4;
-      enemy.sword.rotation.z = -0.2 + strike * 1.6;
-      player.shield.rotation.z = snapshot.guard > 0 ? -strike * 0.8 : 0;
+      const progress = Math.min(1, snapshot.phaseElapsed / 0.65);
+      // Hold the blade through the last frame: Combat applies damage when the
+      // resolve phase ends, so visual contact must land on that same boundary.
+      const arc = this.smoothstep(0.04, 0.9, progress);
+      enemy.root.position.x -= arc * 1.35;
+      enemy.torso.rotation.z = -0.16 + arc * 0.4;
+      enemy.rightArm.rotation.x = -0.12 - arc * 1.1;
+      enemy.sword.rotation.z = -1.35 + arc * 2.2;
+      if (snapshot.guard > 0) {
+        player.leftArm.rotation.x = -0.95;
+        player.shield.rotation.z = -0.52 - arc * 0.24;
+        player.shield.rotation.x = -0.12;
+        player.torso.rotation.z = 0.05;
+      }
     }
-    const impact = snapshot.phase === 'resolve' ? Math.max(0, 1 - snapshot.phaseElapsed * 2.5) : 0;
-    this.hitLight.intensity = impact * (snapshot.guard > 0 ? 1.3 : 3.5);
-    const shake = impact * 0.035;
+    if (snapshot.guard > 0 && snapshot.phase === 'counter') {
+      player.leftArm.rotation.x = -0.92;
+      player.shield.rotation.z = -0.55;
+      player.shield.rotation.x = -0.1;
+    }
+    // Finish the action's contact frame for a short real-time beat after its
+    // HP event. Never layer this over the next queued action's live animation.
+    if (this.playerAttackRecovery > 0 && snapshot.phase !== 'acting' && !counterResolved) {
+      const recovery = this.recoveryWeight(this.playerAttackRecovery, 0.24);
+      const weight = 0.88 * recovery;
+      player.root.position.x = -2.35 + weight * 0.92;
+      player.torso.rotation.z = -weight * (this.playerRecoveryCard === 'heavy' ? 0.68 : 0.4);
+      player.rightArm.rotation.x = -weight * 0.52;
+      player.sword.rotation.z = -0.2 - weight * 1.05;
+    }
+    // The enemy eases out of its completed swing as the next telegraph begins.
+    // This tiny step is layered beneath the next intent's wind-up pose.
+    if (this.enemyAttackRecovery > 0 && snapshot.phase === 'telegraph') {
+      const recovery = this.recoveryWeight(this.enemyAttackRecovery, 0.18);
+      enemy.root.position.x -= recovery * 1.35;
+    }
+    player.root.position.x -= this.recoilOffset(this.playerRecoil) * 0.18;
+    enemy.root.position.x += this.recoilOffset(this.enemyRecoil) * 0.2;
+    player.armor.emissiveIntensity = this.playerFlash * 2.25;
+    enemy.armor.emissiveIntensity = this.enemyFlash * 2.25;
+    this.updateFeedbackSprites();
+    this.hitLight.intensity = Math.max(this.playerFlash, this.enemyFlash, this.ringRemaining / 0.24) * 2.7;
+    const shake = this.reducedMotion.matches ? 0 : this.shakeStrength * this.shakeEnvelope();
     this.camera.position.copy(CAMERA_HOME);
     this.camera.position.x += Math.sin(t * 49) * shake;
     this.camera.lookAt(CAMERA_TARGET);
-    // Subtle time-scale indicator in the arena light and a slow-moving pennant-like pulse.
+    if (this.ringRemaining > 0) {
+      const progress = 1 - this.ringRemaining / 0.24;
+      this.contactRing.visible = true;
+      this.contactRing.scale.setScalar(0.55 + progress * 1.3);
+      this.contactRing.material.opacity = (1 - progress) * 0.58;
+    } else {
+      this.contactRing.visible = false;
+    }
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private observeSnapshot(snapshot: CombatSnapshot): void {
+    const previous = this.previousSnapshot;
+    this.previousSnapshot = snapshot;
+    if (!previous) return;
+
+    // A reset can be triggered while paused or before any animation time has
+    // advanced. Detect both visual-clock rewind and restored health explicitly.
+    if (snapshot.visualTime < previous.visualTime || snapshot.playerHp > previous.playerHp || snapshot.enemyHp > previous.enemyHp) {
+      this.clearFeedback();
+      return;
+    }
+
+    const enemyLoss = previous.enemyHp - snapshot.enemyHp;
+    const playerLoss = previous.playerHp - snapshot.playerHp;
+    const counter = enemyLoss > 0 && previous.phase === 'counter'
+      && (snapshot.phase === 'resolve' || snapshot.phase === 'victory');
+    if (enemyLoss > 0 && previous.phase === 'acting'
+      && (previous.activeCard === 'quick' || previous.activeCard === 'heavy')) {
+      this.playerAttackRecovery = 0.24;
+      this.playerRecoveryCard = previous.activeCard;
+    }
+    if (enemyLoss > 0) this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `PARRY  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
+    if (playerLoss > 0) this.triggerHit(this.player, this.playerDamageLabel, `−${playerLoss}`, '#ffb4a3', 0.4);
+
+    const guardConsumed = previous.guard > snapshot.guard && previous.guard > 0;
+    if (playerLoss > 0 || guardConsumed) this.enemyAttackRecovery = 0.18;
+    if (guardConsumed && playerLoss === 0) {
+      this.showFeedback(this.playerDamageLabel, 'BLOCK', '#a9eee0', this.player.root.position.x, this.player.root.position.z);
+      this.ringRemaining = 0.24;
+      this.contactRing.position.set(-0.55, 1.18, 0.3);
+      this.contactRing.material.color.set('#88e2d3');
+      this.shakeStrength = 0.018;
+      this.shakeRemaining = 0.12;
+    }
+    if (counter) {
+      this.counterPose = 0.42;
+      this.shakeStrength = 0.026;
+      this.shakeRemaining = 0.16;
+    }
+  }
+
+  private triggerHit(fighter: Fighter, label: FeedbackSprite, text: string, color: string, shake: number): void {
+    const playerHit = fighter === this.player;
+    if (playerHit) {
+      this.playerFlash = 1;
+      this.playerRecoil = 1;
+    } else {
+      this.enemyFlash = 1;
+      this.enemyRecoil = 1;
+    }
+    this.showFeedback(label, text, color, fighter.root.position.x, fighter.root.position.z);
+    this.ringRemaining = 0.24;
+    this.contactRing.position.set(fighter.root.position.x + (playerHit ? 0.35 : -0.35), 1.18, fighter.root.position.z + 0.34);
+    this.contactRing.material.color.set(color);
+    this.shakeStrength = Math.max(this.shakeStrength, shake);
+    this.shakeRemaining = Math.max(this.shakeRemaining, 0.2);
+  }
+
+  private showFeedback(label: FeedbackSprite, text: string, color: string, x: number, z: number): void {
+    const { context, canvas } = label;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.font = '800 60px system-ui, sans-serif';
+    context.lineJoin = 'round';
+    context.lineWidth = 13;
+    context.strokeStyle = 'rgba(22, 26, 27, 0.88)';
+    context.strokeText(text, canvas.width / 2, canvas.height / 2);
+    context.fillStyle = color;
+    context.fillText(text, canvas.width / 2, canvas.height / 2);
+    label.sprite.position.set(x, label.baseY, z + 0.38);
+    label.remaining = label.duration;
+    label.material.opacity = 1;
+    label.sprite.visible = true;
+    const texture = label.material.map;
+    if (texture) texture.needsUpdate = true;
+  }
+
+  private advanceFeedback(delta: number): void {
+    this.enemyFlash = Math.max(0, this.enemyFlash - delta / 0.22);
+    this.playerFlash = Math.max(0, this.playerFlash - delta / 0.22);
+    this.enemyRecoil = Math.max(0, this.enemyRecoil - delta / 0.2);
+    this.playerRecoil = Math.max(0, this.playerRecoil - delta / 0.2);
+    this.counterPose = Math.max(0, this.counterPose - delta);
+    this.playerAttackRecovery = Math.max(0, this.playerAttackRecovery - delta);
+    this.enemyAttackRecovery = Math.max(0, this.enemyAttackRecovery - delta);
+    this.ringRemaining = Math.max(0, this.ringRemaining - delta);
+    this.shakeRemaining = Math.max(0, this.shakeRemaining - delta);
+    if (this.shakeRemaining === 0) this.shakeStrength = 0;
+    this.advanceSprite(this.enemyDamageLabel, delta);
+    this.advanceSprite(this.playerDamageLabel, delta);
+  }
+
+  private updateFeedbackSprites(): void {
+    this.updateSprite(this.enemyDamageLabel, this.enemy);
+    this.updateSprite(this.playerDamageLabel, this.player);
+  }
+
+  private clearFeedback(): void {
+    this.enemyFlash = 0; this.playerFlash = 0;
+    this.enemyRecoil = 0; this.playerRecoil = 0;
+    this.playerAttackRecovery = 0; this.enemyAttackRecovery = 0;
+    this.playerRecoveryCard = null;
+    this.counterPose = 0; this.ringRemaining = 0;
+    this.shakeRemaining = 0; this.shakeStrength = 0;
+    this.clearSprite(this.enemyDamageLabel);
+    this.clearSprite(this.playerDamageLabel);
+    this.contactRing.visible = false;
+  }
+
+  private advanceSprite(label: FeedbackSprite, delta: number): void {
+    if (label.remaining <= 0) return;
+    label.remaining = Math.max(0, label.remaining - delta);
+    const progress = 1 - label.remaining / label.duration;
+    label.material.opacity = 1 - progress;
+  }
+
+  private updateSprite(label: FeedbackSprite, fighter: Fighter): void {
+    if (label.remaining <= 0) {
+      label.sprite.visible = false;
+      return;
+    }
+    const progress = 1 - label.remaining / label.duration;
+    const drift = this.reducedMotion.matches ? 0 : progress;
+    label.sprite.position.set(fighter.root.position.x, label.baseY + drift * 0.42, fighter.root.position.z + 0.38);
+    label.sprite.scale.set(1.62 * (1 + drift * 0.08), 0.42 * (1 + drift * 0.08), 1);
+  }
+
+  private clearSprite(label: FeedbackSprite): void {
+    label.remaining = 0;
+    label.material.opacity = 0;
+    label.sprite.visible = false;
+  }
+
+  private strikeCurve(progress: number): number {
+    const release = this.smoothstep(0.12, 0.93, progress);
+    const recovery = this.smoothstep(0.98, 1, progress);
+    return release * (1 - recovery * 0.12);
+  }
+
+  private smoothstep(edge0: number, edge1: number, value: number): number {
+    const x = THREE.MathUtils.clamp((value - edge0) / (edge1 - edge0), 0, 1);
+    return x * x * (3 - 2 * x);
+  }
+
+  private recoilOffset(amount: number): number {
+    return this.reducedMotion.matches ? 0 : amount * amount;
+  }
+
+  private recoveryWeight(remaining: number, duration: number): number {
+    if (this.reducedMotion.matches) return 0;
+    const progress = THREE.MathUtils.clamp(remaining / duration, 0, 1);
+    return progress * progress;
+  }
+
+  private shakeEnvelope(): number {
+    return this.shakeRemaining > 0 ? Math.pow(THREE.MathUtils.clamp(this.shakeRemaining / 0.2, 0, 1), 2) : 0;
   }
 
   resize(): void {
@@ -218,6 +516,8 @@ export class Arena {
       if (Array.isArray(mesh.material)) mesh.material.forEach((material) => material.dispose());
       else if (mesh.material) mesh.material.dispose();
     });
+    this.enemyDamageLabel.material.map?.dispose();
+    this.playerDamageLabel.material.map?.dispose();
     this.renderer.dispose();
     this.renderer.forceContextLoss();
   }

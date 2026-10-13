@@ -4,6 +4,42 @@ async function phase(page: Page, value: string) {
   await expect(page.getByTestId('phase')).toHaveAttribute('data-phase', value);
 }
 
+test('history disclosure preserves keyboard control and queued costs show AP reservation', async ({ page }) => {
+  const clockStart = new Date('2026-10-13T00:00:00Z');
+  await page.clock.install({ time: clockStart });
+  await page.clock.pauseAt(clockStart);
+  await page.goto('./');
+  const history = page.locator('#history-panel');
+  await expect(history).not.toHaveAttribute('open', '');
+  const summary = history.locator('summary');
+  await summary.focus();
+  await page.keyboard.press('Enter');
+  await expect(history).toHaveAttribute('open', '');
+  await phase(page, 'ready');
+  await page.keyboard.press('Enter');
+  await expect(history).not.toHaveAttribute('open', '');
+  await phase(page, 'ready');
+  await page.getByTestId('start').focus();
+  await page.keyboard.press('Enter');
+  await page.clock.runFor(1200);
+  await phase(page, 'planning');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('ap')).toHaveText('1');
+  await expect(page.locator('#ap-reserved')).toHaveText('2 reserved');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('ap')).toHaveText('3');
+  await expect(page.locator('#ap-reserved')).toHaveText('0 reserved');
+  await page.keyboard.press('3');
+  await page.keyboard.press('Enter');
+  await page.clock.runFor(600);
+  await phase(page, 'counter');
+  await page.keyboard.press('Space');
+  await page.clock.runFor(700);
+  await expect(page.locator('#round')).toHaveText('02');
+  await expect(page.locator('#outcome')).toContainText('0 damage taken');
+  await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+});
+
 test('real keyboard cards share AP with Counter and cancel the incoming hit', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));

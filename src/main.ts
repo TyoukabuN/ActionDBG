@@ -8,59 +8,58 @@ if (!root) throw new Error('Missing #app mount point');
 root.innerHTML = `
   <main class="game-shell">
     <header class="masthead">
-      <a class="brand" href="#" aria-label="ActionDBG home"><span class="brand-mark">A</span><span>ACTION<span class="brand-light">DBG</span></span></a>
-      <div class="mast-meta"><span class="eyebrow">COMBAT STUDY / 01</span><span class="meta-divider"></span><span class="eyebrow">THE SUNKEN ARENA</span></div>
-      <button class="icon-button" id="restart" data-testid="restart" aria-label="Restart duel" title="Restart duel (R)">↻ <span>RESET</span></button>
+      <a class="brand" href="#" aria-label="ActionDBG"><span class="brand-mark">A</span><span>ACTIONDBG</span></a>
+      <div class="arena-name"><span class="arena-mark">◆</span> THE SUNKEN ARENA</div>
+      <button class="icon-button" id="restart" data-testid="restart" aria-label="Restart duel" title="Restart duel (R)"><span class="reset-icon">↻</span><span>RESTART</span></button>
     </header>
 
     <section class="arena-layout" aria-label="Combat arena">
       <div class="scene-frame">
         <canvas id="canvas" data-testid="canvas" aria-label="Three-dimensional sword duel"></canvas>
         <div class="scene-shade"></div>
-        <div class="scene-topline"><span class="live-dot"></span><span>LIVE ENCOUNTER</span><span class="round-chip">ROUND <b id="round">01</b></span></div>
+        <div class="scene-topline"><span class="live-dot"></span><span>THE DUEL</span><span class="round-chip">ROUND <b id="round">01</b></span></div>
         <div class="fighters-hud">
           <div class="fighter-card player-card">
-            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>THE CHALLENGER</b><small>Warden of the Coast</small></div></div>
-            <div class="hp-line"><span>VITALITY</span><strong id="player-hp">10 / 10</strong></div><div class="hp-track"><i id="player-bar"></i></div>
+            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>CHALLENGER</b><small>Warden of the Coast</small></div></div>
+            <div class="hp-line"><span>HP</span><strong id="player-hp">10 / 10</strong></div><div class="hp-track"><i id="player-bar"></i></div>
           </div>
           <div class="intent-card" id="intent-card"><span class="intent-label">ENEMY INTENT</span><b id="intent">Awaiting challenger</b><small id="intent-detail">Enter the arena to begin</small></div>
           <div class="fighter-card enemy-card">
             <div class="fighter-id"><span class="enemy-sigil">◆</span><div><b>THE DUELIST</b><small>Veteran of the Red Gate</small></div></div>
-            <div class="hp-line"><span>VITALITY</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
+            <div class="hp-line"><span>HP</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
           </div>
         </div>
-        <div class="stage-status" id="stage-status"><span class="stage-dot"></span><span id="phase" data-testid="phase">READY</span><span class="stage-sep">·</span><span id="phase-copy">A duel awaits</span><span class="timer" id="timer" data-testid="timer">—</span></div>
+        <div class="stage-status" id="stage-status">
+          <div class="phase-heading"><span class="stage-dot"></span><span id="phase" data-testid="phase">READY</span><span id="phase-copy">A duel awaits</span></div>
+          <div class="timer-row"><div class="timer-track"><i id="timer-progress"></i></div><div class="timer-readout"><span id="outcome" class="outcome" aria-live="polite">Read the opening move</span><b class="timer" id="timer" data-testid="timer">—</b></div></div>
+        </div>
         <div class="overlay" id="overlay" aria-live="polite">
-          <div class="overlay-kicker"><span class="ornament">✦</span> A TEST OF TIMING <span class="ornament">✦</span></div>
-          <h1 id="overlay-title">Steel meets<br><em>stillness.</em></h1>
-          <p id="overlay-copy">Read the enemy's opening. Spend your breath wisely. Strike before the arena falls silent.</p>
+          <div class="overlay-kicker"><span class="ornament">✦</span> THE SUNKEN ARENA <span class="ornament">✦</span></div>
+          <h1 id="overlay-title">Face the duelist</h1>
+          <p id="overlay-copy">Read the wind-up. Choose your strike. Keep two action points ready to counter.</p>
           <button class="primary-button" id="start" data-testid="start"><span>Enter the arena</span><b>↗</b></button>
           <div class="key-hint">PRESS <kbd>ENTER</kbd> TO BEGIN</div>
         </div>
         <div class="pause-banner" id="pause-banner" hidden><b>DUEL PAUSED</b><span>Return to this tab to continue</span></div>
         <div class="webgl-error" id="webgl-error" hidden role="alert"><b>The arena could not be drawn.</b><span>Your browser may not support WebGL. Try enabling hardware acceleration.</span></div>
       </div>
-      <aside class="side-rail">
-        <div class="rail-heading"><span class="eyebrow">YOUR EDGE</span><span class="round-number" id="round-rail">01</span></div>
-        <div class="resource-block"><div class="resource-title"><span>Action points</span><span class="resource-caption">THIS ROUND</span></div><div class="ap-display"><b id="ap" data-testid="ap">3</b><span> / <i id="ap-max">3</i></span><div class="ap-pips" id="ap-pips"></div></div><p>Unspent points carry into the counter window.</p></div>
-        <div class="rail-rule"></div>
-        <div class="queue-heading"><div><span class="eyebrow">ACTION QUEUE</span><small>Choose your sequence</small></div><span class="queue-count" id="queue-count">0</span></div>
-        <ol class="queue-list" id="queue" data-testid="queue"><li class="empty-queue">Your move will appear here</li></ol>
-        <div class="rail-rule"></div>
-        <div class="result-heading"><span class="eyebrow">COMMITTED</span><span class="result-mark">✓</span></div>
-        <ol class="result-list" id="result" data-testid="result"><li class="empty-result">No actions resolved yet</li></ol>
-        <div class="rail-rule log-rule"></div>
-        <div class="log-heading"><span class="eyebrow">DUEL NOTES</span><span>RECENT</span></div>
-        <div class="combat-log" id="log" aria-live="polite"><p class="log-empty">The first move is yours.</p></div>
-      </aside>
+      <div class="combat-strip" aria-label="Action point budget and queue">
+        <div class="ap-cluster"><span class="ap-symbol">✦</span><div class="ap-numbers"><span class="ap-label">ACTION POINTS</span><div><b id="ap" data-testid="ap">3</b><span class="ap-divider">/</span><span id="ap-max">3</span><span class="ap-available-label">AVAILABLE</span></div></div><div class="ap-pips" id="ap-pips"></div><span class="reserved-readout" id="ap-reserved">0 reserved</span></div>
+        <div class="queue-cluster"><div class="queue-title"><span>YOUR SEQUENCE</span><span class="queue-count" id="queue-count">0</span></div><ol class="queue-list" id="queue" data-testid="queue"><li class="empty-queue">Select a technique below</li></ol></div>
+      </div>
+
+      <details class="history-panel" id="history-panel">
+        <summary><span class="history-icon">▤</span><span>DUEL HISTORY</span><span class="history-summary" id="history-summary">No actions resolved</span><span class="history-chevron">⌄</span></summary>
+        <div class="history-content"><div><h2>Last outcomes</h2><ol class="result-list" id="result" data-testid="result"><li class="empty-result">No actions resolved yet</li></ol></div><div><h2>Combat log</h2><div class="combat-log" id="log" aria-live="polite"><p class="log-empty">The first move is yours.</p></div></div></div>
+      </details>
     </section>
 
     <footer class="card-desk">
-      <div class="desk-label"><span class="eyebrow">YOUR TECHNIQUES</span><small>Tap to queue · choose an order</small></div>
+      <div class="desk-label"><div><span class="eyebrow">CHOOSE YOUR TECHNIQUE</span><small>Costs are reserved as you queue</small></div><span class="round-number" id="round-rail">01</span></div>
       <div class="cards" id="cards"></div>
       <div class="desk-actions"><button id="skip" data-testid="skip" class="text-button" disabled>Skip <kbd>SPACE</kbd></button><button id="submit" data-testid="submit" class="submit-button" disabled><span>Commit actions</span><b>↗</b><kbd>ENTER</kbd></button></div>
     </footer>
-        <div class="footer-note"><span>Prototype 01</span><span>Read the wind-up. Keep 2 AP ready for a counter.</span><span>Keyboard: <kbd>1–4</kbd> select · <kbd>ENTER</kbd> commit · <kbd>SPACE</kbd> skip · <kbd>R</kbd> reset</span></div>
+    <div class="footer-note"><span>Read the wind-up · Keep 2 AP for Counter</span><span><kbd>1–4</kbd> select <kbd>ENTER</kbd> commit <kbd>SPACE</kbd> skip <kbd>R</kbd> restart</span></div>
   </main>`;
 
 const $ = <T extends HTMLElement>(selector: string) => {
@@ -78,11 +77,18 @@ let accumulator = 0;
 let disposed = false;
 let keySnapshot: CombatSnapshot = combat.snapshot();
 let lastHudKey = '';
+let lastOutcomeLine = '';
 const heldKeys = new Set<string>();
 const STEP = 1 / 60;
 const MAX_STEPS = 6;
 const labels: Record<string, string> = { ready: 'READY', telegraph: 'TELEGRAPH', planning: 'PLAN YOUR TURN', acting: 'ACTIONS IN MOTION', counter: 'COUNTER WINDOW', resolve: 'STRIKE RESOLVED', victory: 'VICTORY', defeat: 'DEFEAT' };
 const ids: CardId[] = ['quick', 'heavy', 'guard', 'counter'];
+const cardIcons: Record<CardId, string> = {
+  quick: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 36 34 13m-5 1 5-1-1 5M9 29l10 10m-5-14 10 10M30 10l8 8"/><path d="m8 40 4-1-3-3z"/></svg>',
+  heavy: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="m11 36 23-23m-5 1 5-1-1 5M8 29l11 11m-5-14 10 10M30 10l8 8M37 35 15 13m5 0-5-1 1 5"/></svg>',
+  guard: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="m24 7 14 6v10c0 9-5.5 15-14 19-8.5-4-14-10-14-19V13z"/><path d="m17 24 5 5 10-11"/></svg>',
+  counter: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 18a15 15 0 1 1-1 12M12 18v-8m0 8h8m5 1v11l8 5"/><path d="m34 12 4 4-4 4"/></svg>',
+};
 
 const cardHost = $('#cards');
 for (const card of CARDS) {
@@ -93,7 +99,7 @@ for (const card of CARDS) {
   button.dataset.testid = `card-${card.id}`;
   button.type = 'button';
   button.setAttribute('aria-label', `${index + 1}. ${card.name}, costs ${card.cost} action ${card.cost === 1 ? 'point' : 'points'}. ${card.description}`);
-  button.innerHTML = `<span class="card-top"><span class="card-index">0${index + 1}</span><span class="card-cost"><b>${card.cost}</b><small>AP</small></span></span><span class="card-art ${card.id}-art"><span class="art-orbit"></span><span class="art-glyph">${card.id === 'quick' ? '↗' : card.id === 'heavy' ? '⚔' : card.id === 'guard' ? '⬡' : '⤴'}</span></span><span class="card-name">${card.name}</span><span class="card-desc">${card.description}</span><span class="card-status" id="status-${card.id}">Available</span>`;
+  button.innerHTML = `<span class="card-top"><span class="card-index">${index + 1}</span><span class="card-cost"><b>${card.cost}</b><small>AP</small></span></span><span class="card-art ${card.id}-art">${cardIcons[card.id]}</span><span class="card-name">${card.name}</span><span class="card-desc">${card.description}</span><span class="card-status" id="status-${card.id}">Available</span>`;
   button.addEventListener('click', () => { combat.toggleCard(card.id); render(combat.snapshot()); }, { signal: inputEvents.signal });
   cardHost.append(button);
 }
@@ -106,18 +112,18 @@ $('#skip').addEventListener('click', () => { combat.skip(); render(combat.snapsh
 function hideOverlay() { $('#overlay').classList.add('overlay-hidden'); }
 function showTerminal(win: boolean) {
   $('#overlay').classList.remove('overlay-hidden');
-  $('#overlay-title').innerHTML = win ? 'A worthy<br><em>victory.</em>' : 'The arena<br><em>claims you.</em>';
+  $('#overlay-title').textContent = win ? 'Duel won' : 'Duel lost';
   $('#overlay-copy').textContent = win ? 'Your timing was true. The Red Gate will remember this duel.' : 'The duel is over. Study the intent, keep a point for your guard, and try again.';
   const button = $('#start'); button.dataset.testid = 'start'; button.innerHTML = '<span>Fight again</span><b>↗</b>';
   $('#overlay .key-hint').innerHTML = 'PRESS <kbd>R</kbd> TO BEGIN AGAIN';
 }
-function render(snapshot: CombatSnapshot) {
+function render(snapshot: CombatSnapshot, realSeconds = 0) {
   keySnapshot = snapshot;
   const hudKey = [snapshot.phase, snapshot.round, snapshot.playerHp, snapshot.enemyHp,
     snapshot.ap, snapshot.remaining.toFixed(1), snapshot.queue.join(','),
     snapshot.committed.join(','), snapshot.activeCard, snapshot.paused,
     snapshot.log.join('|')].join(';');
-  if (hudKey === lastHudKey) { arena?.render(snapshot); return; }
+  if (hudKey === lastHudKey) { arena?.render(snapshot, realSeconds); return; }
   lastHudKey = hudKey;
   const playerMax = 10, enemyMax = 12;
   $('#player-hp').textContent = `${snapshot.playerHp} / ${playerMax}`;
@@ -131,12 +137,21 @@ function render(snapshot: CombatSnapshot) {
   $('#phase-copy').textContent = snapshot.paused ? 'Paused while away' : phaseCopy(snapshot);
   $('#timer').textContent = snapshot.remaining > 0 ? snapshot.remaining.toFixed(1) : snapshot.phase === 'ready' ? '—' : '0.0';
   $('#timer').classList.toggle('timer-urgent', snapshot.remaining > 0 && snapshot.remaining < 1.25);
+  const windowLength = snapshot.phase === 'planning' ? 4 : snapshot.phase === 'counter' ? 2 : snapshot.phase === 'telegraph' ? (snapshot.enemyAttack === 'heavy' ? 1.6 : 1.1) : 0;
+  const timerProgress = windowLength > 0 ? Math.max(0, Math.min(1, snapshot.remaining / windowLength)) : 0;
+  $('#timer-progress').style.transform = `scaleX(${timerProgress})`;
+  $('#stage-status').dataset.phase = snapshot.phase;
   const intentText = snapshot.phase === 'ready' ? 'Awaiting challenger' : snapshot.phase === 'victory' ? 'Duel won' : snapshot.phase === 'defeat' ? 'Duel lost' : `Incoming ${snapshot.enemyAttack} attack`;
   $('#intent').textContent = intentText;
   $('#intent-detail').textContent = snapshot.phase === 'ready' ? 'Enter the arena to begin' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? 'The duel has ended' : `${snapshot.enemyDamage} damage · ${snapshot.enemyAttack === 'heavy' ? 'wide, slow wind-up' : 'fast, light strike'}`;
   $('#intent-card').classList.toggle('intent-heavy', snapshot.enemyAttack === 'heavy' && snapshot.phase !== 'ready');
+  const reservedAp = snapshot.queue.reduce((sum, id) => sum + (CARDS.find((card) => card.id === id)?.cost ?? 0), 0);
+  const availableAp = Math.max(0, snapshot.ap - reservedAp);
+  $('#ap').textContent = String(availableAp);
+  $('#ap-reserved').textContent = `${reservedAp} reserved`;
+  $('#ap-reserved').classList.toggle('has-reserved', reservedAp > 0);
   const pips = $('#ap-pips'); pips.replaceChildren();
-  for (let i = 0; i < snapshot.maxAp; i++) { const pip = document.createElement('i'); if (i < snapshot.ap) pip.className = 'pip-live'; pips.append(pip); }
+  for (let i = 0; i < snapshot.maxAp; i++) { const pip = document.createElement('i'); if (i < availableAp) pip.className = 'pip-live'; else if (i < snapshot.ap) pip.className = 'pip-reserved'; pips.append(pip); }
   const queue = $('#queue'); queue.replaceChildren();
   if (!snapshot.queue.length) queue.innerHTML = '<li class="empty-queue">Your move will appear here</li>';
   else snapshot.queue.forEach((id, i) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="queue-order">0${i + 1}</span><b>${card.name}</b><span class="queue-cost">${card.cost} AP</span>`; queue.append(li); });
@@ -164,6 +179,14 @@ function render(snapshot: CombatSnapshot) {
     }
     lines.slice(0, 4).forEach((line, i) => { const p = document.createElement('p'); p.className = i === 0 ? 'log-latest' : ''; p.textContent = line; log.append(p); });
   }
+  const outcome = recentOutcome(snapshot);
+  if (outcome !== lastOutcomeLine) {
+    lastOutcomeLine = outcome;
+    $('#outcome').textContent = outcome || (snapshot.phase === 'ready' ? 'Read the opening move' : '');
+    $('#history-summary').textContent = outcome || 'No actions resolved';
+    $('#outcome').classList.remove('outcome-flash');
+    if (outcome) requestAnimationFrame(() => $('#outcome').classList.add('outcome-flash'));
+  }
   for (const card of CARDS) {
     const button = $<HTMLButtonElement>(`#card-${card.id}`);
     const reason = combat.availability(card.id);
@@ -182,7 +205,7 @@ function render(snapshot: CombatSnapshot) {
   $('#skip').toggleAttribute('disabled', !planning || snapshot.paused);
   $('#pause-banner').toggleAttribute('hidden', !snapshot.paused);
   if (snapshot.phase === 'victory' || snapshot.phase === 'defeat') showTerminal(snapshot.phase === 'victory');
-  arena?.render(snapshot);
+  arena?.render(snapshot, realSeconds);
 }
 function phaseCopy(s: CombatSnapshot): string {
   if (s.phase === 'telegraph') return 'Read the enemy’s wind-up';
@@ -193,6 +216,35 @@ function phaseCopy(s: CombatSnapshot): string {
   return s.phase === 'ready' ? 'A duel awaits' : 'Encounter complete';
 }
 function escapeHtml(value: string): string { return value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]!)); }
+function recentOutcome(snapshot: CombatSnapshot): string {
+  const log = snapshot.log;
+  const eventPattern = /deals \d+ damage|damage guarded|Counter cancels the incoming attack|Incoming attack cancelled|Guard is ready/;
+  let eventIndex = -1;
+  for (let index = log.length - 1; index >= 0; index--) {
+    if (eventPattern.test(log[index])) { eventIndex = index; break; }
+  }
+  if (eventIndex < 0) return '';
+  const line = log[eventIndex];
+  if (line.includes('Counter cancels') || line.includes('Incoming attack cancelled')) return 'Counter landed · incoming strike cancelled';
+  const guarded = line.match(/(\d+) damage guarded/);
+  if (guarded) {
+    const nextRound = log.findIndex((entry, index) => index > eventIndex && entry.startsWith('Round '));
+    const resolutionEnd = nextRound < 0 ? log.length : nextRound;
+    const damageLine = log.slice(eventIndex + 1, resolutionEnd).find((entry) => /^Enemy attack deals \d+ damage to the player/.test(entry));
+    const taken = Number(damageLine?.match(/deals (\d+) damage/)?.[1] ?? 0);
+    return taken === 0 ? `Guard blocked ${guarded[1]} · 0 damage taken` : `Guard blocked ${guarded[1]} · ${taken} damage taken`;
+  }
+  if (line.startsWith('Guard is ready')) return 'Guard raised · next hit reduced by 2';
+  const damage = line.match(/(Quick Strike|Heavy Strike|Counter|Enemy attack) deals (\d+) damage to the (enemy|player)/);
+  if (damage) {
+    if (damage[1] === 'Enemy attack' && eventIndex > 0) {
+      const priorGuard = log[eventIndex - 1].match(/(\d+) damage guarded/);
+      if (priorGuard) return `Guard blocked ${priorGuard[1]} · ${damage[2]} damage taken`;
+    }
+    return `${damage[1]} · ${damage[2]} damage to ${damage[3] === 'enemy' ? 'duelist' : 'you'}`;
+  }
+  return '';
+}
 
 const canvas = $('#canvas') as HTMLCanvasElement;
 try {
@@ -214,10 +266,10 @@ function frame(now: number) {
   accumulator = Math.min(accumulator + elapsed, STEP * MAX_STEPS);
   let count = 0;
   while (accumulator >= STEP && count < MAX_STEPS) { combat.tick(STEP); accumulator -= STEP; count++; }
-  render(combat.snapshot());
+  render(combat.snapshot(), elapsed);
 }
 function editable(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+  return target instanceof HTMLElement && (target.isContentEditable || target.closest('summary') !== null || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 }
 function onKeyDown(event: KeyboardEvent) {
   if (editable(event.target) || event.metaKey || event.ctrlKey || event.altKey) return;
