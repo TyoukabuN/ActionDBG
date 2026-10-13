@@ -672,8 +672,13 @@ export class Arena {
       this.letterboxAmount = THREE.MathUtils.clamp(this.letterboxAmount + Math.sign(target - this.letterboxAmount) * speed * delta, 0, 1);
     }
     const eased = 1 - Math.pow(1 - this.letterboxAmount, 3);
-    this.topBar.position.x = (1 - eased) * 2.68;
-    this.bottomBar.position.x = -(1 - eased) * 2.68;
+    const travel = 1 - eased;
+    // Enter from opposite off-screen corners instead of sliding horizontally:
+    // upper-right → lower-left, lower-left → upper-right.
+    this.topBar.position.set(travel * 2.68, 0.76 + travel * 0.72, -1);
+    this.bottomBar.position.set(-travel * 2.68, -0.76 - travel * 0.72, -1);
+    this.topBar.rotation.z = travel * -0.09;
+    this.bottomBar.rotation.z = travel * 0.09;
     this.topBar.visible = this.bottomBar.visible = this.letterboxAmount > 0.001;
   }
 
