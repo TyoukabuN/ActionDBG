@@ -67,7 +67,7 @@ Project-local skills live in `.agents/skills/`. Read the actual instructions rat
 
 Use [majidmanzarpour/threejs-game-skills](https://github.com/majidmanzarpour/threejs-game-skills) as the Three.js game development guidance. For broad game work, start with `threejs-game-director`; it routes to gameplay, graphics, UI, debugging, and QA specialists as needed. For narrow tasks, load only the relevant guidance.
 
-When available, read `.agents/skills/threejs-game-director/SKILL.md` and sibling skills locally. If the package is absent, report that fact and consult the upstream instructions when accessible; do not claim it is installed or invent missing instructions. Install skills only within the authorized task scope and preserve existing skills.
+The complete nine-skill package is installed under `.agents/skills/threejs-*/`. Read `.agents/skills/threejs-game-director/SKILL.md` and the relevant sibling skills locally, including their required references. See `.agents/skills/threejs-game-skills-source.md` for the pinned upstream revision and license record. Preserve existing skills when updating the package.
 
 Project constraints govern how generic skill recommendations are applied. Keep initial assets primitive or procedural, validation proportional, and hosting on GitHub Pages. External asset APIs and paid generation are optional and require an explicit task need and authorized access. Do not change model providers merely to develop the game. Delegate only when authorized by the user or applicable instructions and supported by the runner; never claim a worker model was used without evidence.
 
