@@ -189,7 +189,7 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#intent-detail').textContent = snapshot.phase === 'ready' ? '进入竞技场开始战斗' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? '对决已结束' : `${snapshot.enemyDamage} 点伤害 · ${snapshot.enemyAttack === 'heavy' ? '范围大，前摇较慢' : '快速轻击'}`;
   $('#intent-card').classList.toggle('intent-heavy', snapshot.enemyAttack === 'heavy' && snapshot.phase !== 'ready');
   const threatCard = $('#counter-threat-card');
-  const counterThreatVisible = snapshot.phase === 'counter';
+  const counterThreatVisible = snapshot.phase === 'counter' || snapshot.phase === 'resolve';
   threatCard.classList.toggle('threat-card-visible', counterThreatVisible);
   threatCard.classList.toggle('threat-card-heavy', snapshot.enemyAttack === 'heavy');
   threatCard.setAttribute('aria-hidden', String(!counterThreatVisible));

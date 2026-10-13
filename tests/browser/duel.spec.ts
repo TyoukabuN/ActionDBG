@@ -216,13 +216,14 @@ test('QTE buttons play directly, resume time, and keyboard counter changes the c
   await expect(canvas).toHaveAttribute('data-render-order', 'scene,letterbox,actors,effects');
   await page.keyboard.press('4');
   await phase(page, 'resolve');
-  await expect(enemyCard).toBeHidden();
+  await expect(enemyCard).toBeVisible();
   await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
   await page.clock.runFor(220);
   await expect(canvas).toHaveAttribute('data-shot', 'parry');
   await page.clock.runFor(500);
   await expect(page.locator('#round')).toHaveText('02');
+  await expect(enemyCard).toBeHidden();
   for (let i = 0; i < 5; i++) {
     await page.keyboard.press('r');
     await expect(page.locator('#round')).toHaveText('01');
@@ -305,4 +306,21 @@ test('Chinese portrait UI supports touch card play, counter and restart', async 
   await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
   expect(errors).toEqual([]);
   await context.close();
+});
+
+test('enemy attack card appears during resolve even without enough AP to counter', async ({ page }) => {
+  await openQte(page);
+  await page.getByTestId('card-heavy').click();
+  await page.clock.runFor(650);
+  await phase(page, 'planning');
+  await page.getByTestId('submit').click();
+  await phase(page, 'resolve');
+  const enemyCard = page.getByTestId('counter-threat-card');
+  await expect(enemyCard).toBeVisible();
+  await expect(enemyCard).toContainText('轻攻击');
+  await expect(enemyCard).toContainText('2 点伤害');
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-letterbox', '0.000');
+  await page.clock.runFor(700);
+  await expect(enemyCard).toBeHidden();
+  await expect(page.locator('#player-hp')).toHaveText('8 / 10');
 });
