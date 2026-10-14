@@ -1,49 +1,49 @@
-# Skills for the Current ActionDBG Prototype
+# 适合当前 ActionDBG 原型的技能
 
-Reviewed: 2026-10-13. Scope: discovery and source review, not installation or gameplay changes.
+审查日期：2026-10-13。范围：候选发现与来源审查，不安装、不修改玩法。
 
-## Project fit
+## 项目适配
 
-ActionDBG already uses plain Three.js, strict TypeScript, Vite, a DOM card HUD, a deterministic combat state machine and Playwright. The current encounter has fixed retained cards, no draw/discard system, limited counter chaining, two clocks and a rear diagonal battle camera. The immediate needs are stronger game-specific visual direction, readable combat feedback and visual/behavioral playtesting. Additional architecture orchestration is already provided by `adaptive-project-development` and `sol-luna-dev`.
+ActionDBG 已使用原生 Three.js、严格 TypeScript、Vite、DOM 卡牌 HUD、确定性战斗状态机和 Playwright。当时遭遇采用固定保留手牌，无抽牌／弃牌，反击链受限，具有双时钟和背后斜视战斗镜头。近期需要更强的游戏视觉方向、可读反馈及视觉／行为试玩。架构协作流程已有 `adaptive-project-development` 与 `sol-luna-dev`。
 
-## Recommended sources
+## 推荐来源
 
-| Candidate | Useful responsibility | Fit and limits |
+| 候选 | 有用职责 | 适配与限制 |
 | --- | --- | --- |
-| [OpenAI Game Studio: three-webgl-game](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/three-webgl-game/SKILL.md) | Plain TS/Vite Three.js runtime, explicit cameras, simulation/render separation, DOM HUD | Strong direct stack fit. Do not add Rapier or GLB loading until the encounter actually needs physics or shipped models |
-| [OpenAI Game Studio: game-ui-frontend](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/game-ui-frontend/SKILL.md) | Game-themed visual direction, playfield protection, contextual HUD and collapsed secondary panels | Strong fit for reducing the current dashboard-like presentation. Its sparse exploration HUD and mobile defaults must be adapted: card choices/AP/intent remain essential, and this prototype is desktop-only |
-| [OpenAI Game Studio: game-playtest](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/game-playtest/SKILL.md) | Real-input browser QA, mandatory screenshot review for WebGL, issue reproduction/severity | Strong fit. Reuse the existing Playwright setup rather than adding a second test system |
-| [Three.js Game Skills](https://github.com/majidmanzarpour/threejs-game-skills) | Game-specific UI, gameplay feel, graphics critique and QA | Still a strong community option: prioritize `threejs-game-ui-designer`, `threejs-gameplay-systems` and `threejs-qa-release`. Use graphics scoring only when visual polish is requested; do not automatically trigger paid asset generation |
-| [Anthropic frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) | Deliberate typography, visual identity, themed layout and critique | Useful optional specialist for HTML/CSS card/HUD art direction. Not a combat-rule or 3D-animation skill; avoid turning the game into a marketing-page layout |
-| [Card Game](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/genres/card-game/SKILL.md) and [effect-resolution reference](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/genres/card-game/references/effect-resolution.md) | Card data, atomic cost/target validation, explicit effect order and trigger handling | Selective domain reference. Its must-have deck/draw/discard loop conflicts with the current fixed-hand PRD. Adopt relevant rules, not the complete genre template or Godot/Unity dependencies |
-| [Yuki001 game-architect](https://github.com/Yuki001/game-dev-skills/blob/main/skills/game-architect/SKILL.md) | Prototype versus data/domain architecture, time/skill/effect system knowledge | Optional reference for later expansion. It is domain knowledge rather than workflow; retain existing governance and avoid introducing DDD/module frameworks for this one encounter |
+| [OpenAI Game Studio: three-webgl-game](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/three-webgl-game/SKILL.md) | 原生 TS／Vite／Three.js 运行时、明确镜头、模拟／渲染分离、DOM HUD | 技术栈高度匹配。遭遇确需物理或正式模型之前，不加 Rapier 或 GLB 加载 |
+| [OpenAI Game Studio: game-ui-frontend](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/game-ui-frontend/SKILL.md) | 游戏主题视觉、战斗区域保护、情境 HUD、折叠次要面板 | 适合减少仪表盘感。需调整稀疏探索 HUD 和移动默认：卡牌／AP／意图不可缺，当时原型仅桌面 |
+| [OpenAI Game Studio: game-playtest](https://github.com/openai/plugins/blob/0722921d5542fc593105c27bd52630babd8b8c2a/plugins/game-studio/skills/game-playtest/SKILL.md) | 实际输入浏览器 QA、WebGL 必须审图、问题复现／严重度 | 高度匹配；复用 Playwright，不增加第二套测试系统 |
+| [Three.js Game Skills](https://github.com/majidmanzarpour/threejs-game-skills) | 游戏界面、手感、图形评价及 QA | 仍是合适社区方案：优先 `threejs-game-ui-designer`、`threejs-gameplay-systems`、`threejs-qa-release`。仅在要求视觉精修时评分，不自动触发付费资产生成 |
+| [Anthropic frontend-design](https://github.com/anthropics/skills/blob/main/skills/frontend-design/SKILL.md) | 有意识的字体、视觉身份、主题布局与评价 | 可作为 HTML／CSS 卡牌／HUD 美术指导。不是战斗规则或 3D 动画技能，避免营销网页布局 |
+| [Card Game](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/genres/card-game/SKILL.md) 与[效果结算参考](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/blob/main/skills/genres/card-game/references/effect-resolution.md) | 卡牌数据、原子费用／目标验证、明确效果顺序与触发 | 有选择地引用领域知识。强制牌库／抽牌／弃牌循环与固定手牌 PRD 冲突；只采用相关规则，不套完整模板或 Godot／Unity 依赖 |
+| [Yuki001 game-architect](https://github.com/Yuki001/game-dev-skills/blob/main/skills/game-architect/SKILL.md) | 原型与数据／领域架构差异、时间／技能／效果系统知识 | 后续扩展可参考；属于领域知识而非工作流程。保留已有治理，不为单场遭遇引入 DDD／模块框架 |
 
-## Best next combination
+## 下一步最佳组合
 
-Choose one main implementation/QA family to avoid competing directions:
+选择一套主要实现／QA 技能，避免方向冲突：
 
-1. **For current UI/scene iteration:** Game Studio's `three-webgl-game`, `game-ui-frontend` and `game-playtest` specialists. The umbrella skill defaults to 2D Phaser, so explicitly route to the already established plain Three.js stack.
-2. **For action feel and a deliberate graphics pass:** the existing Three.js Game Skills family. Its gameplay reference treats feedback as state communication and covers anticipation/contact, easing, impact and camera response. Keep separate visual feedback time and decision time; introducing hitstop must not accidentally pause or consume a decision window.
-3. **For a card-rule extension:** selectively consult Card Game's effect-resolution reference and use the existing PRD/design workflow. Do not add draw/discard, targeting frameworks or more phases before they become approved requirements.
+1. **当前界面／场景迭代：** Game Studio 的 `three-webgl-game`、`game-ui-frontend`、`game-playtest`。总入口默认 2D Phaser，因此明确路由到既有原生 Three.js。
+2. **行动手感与专项图形迭代：** 已有 Three.js Game Skills。其玩法参考将反馈视为状态传达，覆盖起手／接触、缓动、命中和镜头响应。视觉反馈时间与决策时间分开；命中停顿不能意外暂停或消耗决策窗口。
+3. **卡牌规则扩展：** 有选择地阅读 Card Game 效果结算参考，沿用 PRD／设计流程。抽牌／弃牌、目标框架和更多阶段必须先成为获批准需求。
 
-`frontend-design` is a supplement, not another director. An initial visual task should set a clear combat fantasy, palette/type scale, large readable card costs, near-player/far-opponent camera, persistent decision information, and a collapsible combat log. Evaluate it during play rather than accepting a static screenshot alone.
+`frontend-design` 是补充专家，不是另一套导演。首轮视觉任务应明确战斗想象、配色／字体尺度、大而可读的费用、近玩家／远对手镜头、持续决策信息和可折叠日志。在试玩中评价，不只接受静态截图。
 
-## Sources examined and exclusions
+## 已检查来源与排除项
 
-Discovery used three Exa GitHub searches (five results each) and one Tavily Reddit search (four results). Useful candidates were read directly from upstream raw GitHub sources. No candidate helper script was executed and no benchmark establishes that a skill improves the game yet.
+发现阶段使用三次 Exa GitHub 搜索（每次五条）与一次 Tavily Reddit 搜索（四条），有用候选直接读取上游 GitHub 原始文件。未运行候选辅助脚本，也无基准证明技能改善游戏。
 
-- OpenAI plugins were inspected at commit `0722921d5542fc593105c27bd52630babd8b8c2a`. The Game Studio manifest identifies OpenAI as author, version 0.1.2, MIT license, and a skill directory. Its main, Three.js, UI and playtest skills and HUD reference were read. This is a first-party complement to community sources, not a community endorsement.
-- The current [openai/skills README](https://github.com/openai/skills/blob/main/README.md) explicitly marks that repository deprecated and points to `openai/plugins`. The old `develop-web-game` skill was readable at historical revision `82d2c5b4`, while its current main path returned 404. Prefer the verified current Game Studio package instead of copying a stale mirror.
-- The upstream Three.js UI/graphics skill files and gameplay `game-feel.md` were read. Anthropic frontend-design and its Apache-2.0 license were read. Card Game and its effect-resolution reference and root Apache-2.0 license were read. Game Architect's skill and prototype-design reference were read. Non-pinned branch links can change after this review.
-- [Jeffallan game-developer](https://github.com/Jeffallan/claude-skills/blob/main/skills/game-developer/SKILL.md) was not selected: its Unity/Unreal, ECS, networking, pooling and platform-wide performance requirements do not fit this browser prototype.
-- [Claude Code Game Studios team-combat](https://github.com/Donchitos/Claude-Code-Game-Studios/blob/main/.claude/skills/team-combat/SKILL.md) was not selected: extensive team delegation and repeated stage/write confirmations overlap with existing governance and impede the desired small iteration loop.
-- [full-statck-skills threejs-camera](https://github.com/full-statck-skills/threejs-skills/blob/main/skills/threejs-camera/SKILL.md) is a useful technical camera reference, but does not establish cinematic composition or combat UI direction. It is optional rather than a main game skill.
-- [alton47/threejs-skills](https://github.com/alton47/threejs-skills) was reviewed at README level only. Its self-description as official was not independently established; broad Three.js API coverage is not evidence of stronger gameplay guidance.
+- OpenAI 插件检查于提交 `0722921d5542fc593105c27bd52630babd8b8c2a`。Game Studio 清单标明作者 OpenAI、版本 0.1.2、MIT 许可和技能目录；已读主入口、Three.js、界面、试玩技能及 HUD 参考。属于第一方补充，不代表社区背书。
+- 当时 [openai/skills README](https://github.com/openai/skills/blob/main/README.md) 明确标记弃用并指向 `openai/plugins`。旧 `develop-web-game` 在历史版本 `82d2c5b4` 可读，当前 main 路径 404。优先验证过的 Game Studio，不复制过期镜像。
+- 已读上游 Three.js 界面／图形技能及玩法 `game-feel.md`；Anthropic frontend-design 与 Apache-2.0 许可；Card Game、效果参考及根 Apache-2.0 许可；Game Architect 技能及原型设计参考。未固定提交的分支链接可变。
+- 未选 [Jeffallan game-developer](https://github.com/Jeffallan/claude-skills/blob/main/skills/game-developer/SKILL.md)：Unity／Unreal、ECS、联网、池化及跨平台性能要求不适合本浏览器原型。
+- 未选 [Claude Code Game Studios team-combat](https://github.com/Donchitos/Claude-Code-Game-Studios/blob/main/.claude/skills/team-combat/SKILL.md)：大量代理协作及重复阶段／写入确认与已有治理重叠，阻碍小步迭代。
+- [full-statck-skills threejs-camera](https://github.com/full-statck-skills/threejs-skills/blob/main/skills/threejs-camera/SKILL.md) 是有用技术参考，但不确定演出构图或战斗界面方向；可选，不作主技能。
+- [alton47/threejs-skills](https://github.com/alton47/threejs-skills) 只审查 README。其自称官方未独立证实；广泛 API 覆盖不证明玩法指导更好。
 
-Reddit discovery returned [a Three.js skill-system discussion](https://www.reddit.com/r/claudeskills/comments/1u7qdf6/threejs_game_director_skill_system_for_codex) and related AI game-development threads. These were provider snippets only, sometimes with unrelated navigation text. Full posts/comments and reliable community sentiment were not verified. They were not used to rank skills or claim consensus.
+Reddit 发现返回 [Three.js 技能系统讨论](https://www.reddit.com/r/claudeskills/comments/1u7qdf6/threejs_game_director_skill_system_for_codex) 和相关 AI 游戏开发帖子。只有服务商摘要，部分夹杂无关导航。未验证完整帖子／评论或可靠社区态度，不用于技能排名或共识声明。
 
-## Installation implications
+## 安装影响
 
-No skills/plugins were installed during the discovery phase. Subsequently, the complete nine-skill Three.js Game Skills package was installed in `.agents/skills/` at revision `8286774b22a2566bf894dbc825825c16921866af`; see the [source record](../../.agents/skills/threejs-game-skills-source.md). Game Studio and the other candidates are not installed. Game Studio skills reference sibling skills and plugin-level `../../references/`; copying one SKILL.md into `.agents/skills/` alone breaks those paths. Prefer the complete supported plugin package, or preserve/adapt all referenced resources deliberately when making a project-local skill distribution. Preserve upstream provenance/licenses and existing local skills.
+发现阶段未安装技能／插件。随后完整九技能 Three.js Game Skills 包以版本 `8286774b22a2566bf894dbc825825c16921866af` 安装到 `.agents/skills/`，见[来源记录](../../.agents/skills/threejs-game-skills-source.md)。Game Studio 及其他候选未安装。Game Studio 技能引用同级技能和插件 `../../references/`，单独复制 SKILL.md 会破坏路径。优先完整受支持插件包；制作项目本地分发时，需有意保留／调整所有引用资源。保留上游来源／许可和现有技能。
 
-Plugin source review does not establish that the plugin is callable in this cloud conversation. API access, browser tools and paid generation remain separate capabilities. These candidates need an actual scoped implementation/playtest to establish practical benefit for ActionDBG.
+插件源码审查不能证明它在此云端对话可调用。API、浏览器工具和付费生成是独立能力。候选必须通过实际限定范围实现／试玩才能证明对 ActionDBG 的实用价值。

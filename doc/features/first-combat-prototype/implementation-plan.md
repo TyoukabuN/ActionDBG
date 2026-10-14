@@ -1,10 +1,10 @@
-# First Combat Prototype — Implementation Plan
+# 首个战斗原型 — 实施计划
 
-Status: ready. Track: Full. Updated: 2026-10-12.
-Sources: [PRD](../../prd/first-combat-prototype.md), [design](design.md).
+状态：已就绪。流程：完整。更新日期：2026-10-12。
+来源：[PRD](../../prd/first-combat-prototype.md)、[设计](design.md)。
 
-1. **Rules and bootstrap (AC-01–04, AC-06–08):** establish pinned npm/Vite/TypeScript tools; implement `src/combat.ts` and focused rule tests. Validate costs, cooldown boundary, unscaled deadlines, pause, death, bounded counters, deterministic restart and both strategies.
-2. **Browser presentation (AC-01–02, AC-05–07):** implement Three.js arena and HTML card HUD against the frozen core contract. Add real-input desktop browser smoke tests, sizing and lifecycle coverage. Validate type checking, no console/page errors, canvas visibility, correct state/result feedback and repeated retry.
-3. **Delivery (all AC):** build with `/ActionDBG/` base; serve production output and verify real input. Add CI checks and main-only Pages deployment. Document controls and manual Pages setup, record acceptance evidence and remaining human playtest questions. Commit/push the feature branch, then run a delivery build as requested.
+1. **规则与初始化（AC-01–04、AC-06–08）：** 建立固定版本的 npm／Vite／TypeScript 工具；实现 `src/combat.ts` 与针对性的规则测试。验证费用、冷却边界、不随慢动作缩放的时限、暂停、死亡、有限反击、确定性重开和两种策略。
+2. **浏览器表现（AC-01–02、AC-05–07）：** 依据固定核心约定，实现 Three.js 竞技场与 HTML 卡牌 HUD。加入桌面实际输入的浏览器冒烟测试、尺寸和生命周期覆盖。验证类型检查、无控制台／页面错误、画布可见、状态／结果反馈正确及重复重试。
+3. **交付（所有 AC）：** 使用 `/ActionDBG/` 基础路径构建；启动生产预览并验证实际输入。增加 CI 检查与仅 main 的 Pages 部署。记录操作、Pages 手动设置、验收证据及剩余真人试玩问题。提交／推送功能分支，然后按要求执行交付构建。
 
-Dependencies: Node 22+ available; npm registry access; browser binaries if not already present. Installation changes only new manifests/lockfile. Risks: headless software WebGL support, timing-driven browser tests and provider network limits. Do not weaken gameplay assertions or TLS checks to resolve these.
+依赖：可用的 Node 22+、npm 注册表访问、尚未安装时所需的浏览器二进制。安装仅新增清单／锁文件。风险：无界面环境的软件 WebGL 支持、依赖时间推进的浏览器测试、服务商网络限制。不得通过削弱玩法断言或 TLS 检查来解决这些问题。

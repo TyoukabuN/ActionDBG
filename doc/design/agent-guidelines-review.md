@@ -1,39 +1,39 @@
-# Agent Guidelines Review
+# 代理规范审查
 
-## Scope and evidence
+## 范围与证据
 
-Reviewed the root `AGENTS.md` against the ActionDBG design, the project bootstrap brief, local governance skills, and publicly accessible GitHub sources. This is a documentation review; no game implementation, runtime validation, skill installation, or deployment was performed.
+根据 ActionDBG 设计、项目初始化说明、本地治理技能和公开可访问的 GitHub 来源，审查根目录 `AGENTS.md`。这是文档审查，未实现游戏、验证运行时、安装技能或部署。
 
-GitHub raw sources were read on 2026-10-12. These links track upstream branches and may change. The recommendations below are project-specific conclusions, not claims of community consensus.
+GitHub 原始来源读取于 2026-10-12。链接跟随上游分支，可能变化。以下建议是项目具体结论，不代表社区共识。
 
-Reddit research was attempted through `www.reddit.com` for r/threejs game/performance and r/gamedev prototype/scope searches, and through `old.reddit.com` and `reddit.com`. Initially, the environment proxy rejected the connection with `403 Forbidden`. After the user published the domain allowlist changes, the environment recovered and requests reached an HTTP response containing Reddit's own "whoa there, pardner!" block page. It states that the request was blocked due to a network policy and suggests login or developer credentials. JSON and HTML search requests still did not provide discussion content. No Reddit posts or comments were read or cited. Reddit evidence remains outstanding; user-provided discussion content or a supported authenticated access route is needed. Further environment allowlist additions are not indicated by this response.
+曾通过 `www.reddit.com` 搜索 r/threejs 游戏／性能及 r/gamedev 原型／范围，并尝试 `old.reddit.com`、`reddit.com`。最初环境代理以 `403 Forbidden` 拒绝连接。用户发布域名允许列表修改后，环境恢复，请求收到 Reddit 自身的 “whoa there, pardner!” 拦截页。页面说明因网络策略阻止，建议登录或开发者凭据。JSON 和 HTML 搜索仍未返回讨论正文。没有读取或引用 Reddit 帖子／评论，Reddit 证据仍缺失，需要用户提供讨论正文或受支持的认证访问方式。该响应不说明需要继续增加环境允许域名。
 
-## Sources and implications
+## 来源与应用
 
-| Source | Observed guidance | Application to ActionDBG |
+| 来源 | 观察到的指导 | 对 ActionDBG 的应用 |
 | --- | --- | --- |
-| [AGENTS.md format repository](https://github.com/agentsmd/agents.md/blob/main/README.md) | Dedicated project instructions with concrete development and testing guidance | Keep root instructions actionable and move review history to this file |
-| [Three.js game director](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-game-director/SKILL.md) | Playable loop first; user scope controls quality and verification depth | Separate pipeline validation from a combat slice; avoid mandatory premium graphics work |
-| [Three.js gameplay systems](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-gameplay-systems/SKILL.md) | Explicit player verbs, objective, pressure, feedback, retry, deterministic ordering, and representative encounters | Add playable-increment criteria and data-driven balance; implement one encounter before content expansion |
-| [Three.js QA/release](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-qa-release/SKILL.md) | Real input, progression, failure/retry, production preview, scoped viewport coverage; pixels alone do not prove gameplay | Strengthen behavior-based browser checks; responsive layout does not automatically require mobile gameplay |
-| [Three.js FPS example](https://github.com/mrdoob/three.js/blob/dev/examples/games_fps.html) | Bounds frame delta and uses collision substeps | Require a suitable timestep strategy when needed; this example uses substeps, not a universal fixed-step mandate |
-| [Three.js Timer implementation](https://github.com/mrdoob/three.js/blob/dev/src/core/Timer.js) | Reads time once per update and can reset timing after visibility changes | Add hidden-tab pause, resume-baseline, and separate simulation/decision-clock policies |
-| [Vite static deployment guide](https://github.com/vitejs/vite/blob/main/docs/guide/static-deploy.md) | Repository Pages sites require the repository base path; root/custom-domain sites differ | Preserve `/ActionDBG/` for the standard deployment and test built asset URLs |
+| [AGENTS.md 格式仓库](https://github.com/agentsmd/agents.md/blob/main/README.md) | 独立项目说明，提供具体开发与测试指导 | 根说明保持可执行，审查历史移到本文 |
+| [Three.js 游戏导演](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-game-director/SKILL.md) | 优先可玩循环；用户范围决定质量与验证深度 | 区分流水线验证与战斗切片；不强制高端图形工作 |
+| [Three.js 玩法系统](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-gameplay-systems/SKILL.md) | 明确玩家行为、目标、压力、反馈、重试、确定性顺序和代表性遭遇 | 增加可玩增量标准、数据驱动平衡；先实现一场遭遇再扩内容 |
+| [Three.js QA／发布](https://github.com/majidmanzarpour/threejs-game-skills/blob/main/skills/threejs-qa-release/SKILL.md) | 实际输入、推进、失败／重试、生产预览、限定视口检查；像素不证明玩法 | 强化行为浏览器检查；响应式不自动要求移动玩法 |
+| [Three.js FPS 示例](https://github.com/mrdoob/three.js/blob/dev/examples/games_fps.html) | 限制帧增量、使用碰撞子步 | 按需选择时间步策略；示例是子步，不是普遍固定步长要求 |
+| [Three.js Timer 实现](https://github.com/mrdoob/three.js/blob/dev/src/core/Timer.js) | 每次更新读取一次时间，可在可见性改变后重置计时 | 增加隐藏页暂停、恢复基线和模拟／决策双时钟策略 |
+| [Vite 静态部署指南](https://github.com/vitejs/vite/blob/main/docs/guide/static-deploy.md) | 仓库 Pages 需要仓库基础路径；根站／自定义域名不同 | 标准部署保留 `/ActionDBG/`，测试构建资产 URL |
 
-## Review findings and changes
+## 发现与修改
 
-1. **Core-loop acceptance was underspecified.** The previous instructions covered architecture and builds but did not require a representative playable encounter. Added scoped player-action, objective, pressure, feedback, and retry criteria. The movement demo retains its smaller validation purpose.
-2. **Combat clocks and event chains needed operational rules.** Added explicit transitions, duplicate-trigger prevention, bounded phase chains, lethal-damage behavior, and simulation-driven timers. Numerical balance and unresolved hand/deck alternatives remain design decisions.
-3. **Browser lifecycle handling was incomplete.** Added hidden-tab pause, held-input cleanup, resume timing, pointer-lock handling, audio unlock, and shared-resource ownership. These prevent tab-return jumps, stuck movement, and resource/listener leaks.
-4. **Performance requirements lacked measurement context.** Added viewport/device and frame-time targets, representative-play measurements, pixel-ratio control, and profiling before optimization. No unsupported device guarantee or arbitrary global FPS requirement was introduced.
-5. **UI and input rules were too general.** Added HUD/world input separation, control discoverability, readable eligibility feedback, keyboard-operable HTML controls, and explicit desktop-first scope.
-6. **Build success could be mistaken for gameplay proof.** Added combat edge-case tests, injected time and seeded randomness, behavior assertions, production-preview checks, and separation of visual evidence from gameplay correctness.
-7. **Asset provenance was missing.** Added source/license/attribution tracking for third-party assets and traceability for generated assets.
+1. **核心循环验收不够明确。** 旧说明覆盖架构／构建，却不要求代表性可玩遭遇。增加限定范围的玩家行为、目标、压力、反馈和重试标准。移动演示仍保留较小验证目的。
+2. **战斗时钟和事件链缺操作规则。** 增加显式转换、防重复触发、阶段链上限、致死行为和模拟驱动计时。平衡数值及未定手牌／牌库方案仍是设计决定。
+3. **浏览器生命周期不完整。** 增加隐藏页暂停、持续输入清理、恢复计时、指针锁、音频解锁和共用资源归属，防止返回跳变、移动卡住及资源／监听泄漏。
+4. **性能要求缺测量条件。** 增加视口／设备／帧时目标、代表性玩法测量、像素比限制和优化前分析。未加入无证据设备保证或随意的全局 FPS 要求。
+5. **界面与输入太泛化。** 增加 HUD／场景输入隔离、操作发现性、可读资格反馈、键盘可操作 HTML 控件和桌面优先范围。
+6. **构建成功易被误当玩法证明。** 增加战斗边界测试、注入时间／可复现随机、行为断言、生产预览，并区分视觉证据和玩法正确性。
+7. **缺资产来源记录。** 增加第三方来源／许可／署名及生成资产可追溯性。
 
-## Validation and remaining limitations
+## 验证与剩余限制
 
-- Reviewed local document and skill references and Markdown formatting.
-- Kept changes limited to project guidance and this review record; existing design and skill files are unchanged.
-- The repository still has no application manifest, source, or test suite. Proposed commands and checks are future implementation requirements, not verified runtime capabilities.
-- The external Three.js skill package is not installed in `.agents/skills/`; upstream files were consulted as research references.
-- Direct Reddit reads remain blocked after the environment domain changes were published and requests retried. Later Tavily tests supplied short Reddit excerpts, but original-post extraction failed in both Tavily and Exa. Complete post/comment review remains outstanding; see the [provider tests](../research/community-search-provider-test.md) and [desktop handoff](../research/README.md).
+- 审查本地文档／技能引用与 Markdown 格式。
+- 修改仅涉及项目规范和本文，原有设计／技能文件未变。
+- 当时仓库仍无应用清单、源码或测试；建议命令／检查是未来要求，不是已验证运行能力。
+- 当时外部 Three.js 技能包未安装在 `.agents/skills/`，上游文件仅作为研究参考。
+- 域名修改发布并重试后，直接 Reddit 读取仍阻止。后续 Tavily 提供短摘录，但 Tavily、Exa 都未提取原帖。完整帖子／评论审查仍缺，见[服务商测试](../research/community-search-provider-test.md)与[桌面交接](../research/README.md)。

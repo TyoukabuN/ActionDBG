@@ -1,75 +1,75 @@
-# First Combat Prototype — Verification
+# 首个战斗原型 — 验证记录
 
-Updated: 2026-10-12. Track: Full. Branch: `feat/first-combat-prototype`.
-Status: implemented; automated gameplay acceptance passed; human playtest feedback pending.
-Upstream: [PRD](../../prd/first-combat-prototype.md), [design and AC mapping](design.md), [tasks](tasks.md).
+更新日期：2026-10-12。流程：完整。分支：`feat/first-combat-prototype`。
+状态：已实现；自动化玩法验收通过；等待真人试玩反馈。
+上游：[PRD](../../prd/first-combat-prototype.md)、[设计与 AC 映射](design.md)、[任务](tasks.md)。
 
-## Executed checks
+## 已执行检查
 
-| Check | Result | Evidence |
+| 检查 | 结果 | 证据 |
 | --- | --- | --- |
-| Reproducible installation | PASS | `npm ci --cache /workspace/.npm-cache --no-audit --no-fund` |
-| Strict TypeScript | PASS | `npm run typecheck`; build also type-checks |
-| Gameplay rules | PASS | `npm test`: 12 tests executed |
-| Production build | PASS | `npm run build`: Vite `/ActionDBG/` output |
-| Browser integration | PASS | `CHROMIUM_PATH=/usr/bin/chromium npm run test:browser`: 4 scenarios passed against production preview |
-| Dev entry readiness | PASS | Started `npm run dev -- --port 5173 --strictPort`; local HTML and transformed main-module requests succeeded |
-| GitHub Actions execution | NOT RUN | Workflows authored; local results do not establish hosted CI status |
-| GitHub Pages deployment | NOT RUN | Requires reviewed main merge and Pages source set to GitHub Actions |
-| Human experience evaluation | NOT RUN | Player feedback on clarity, pressure and interruptions is still required |
+| 可复现安装 | 通过（PASS） | `npm ci --cache /workspace/.npm-cache --no-audit --no-fund` |
+| 严格 TypeScript | 通过（PASS） | `npm run typecheck`；构建也检查类型 |
+| 玩法规则 | 通过（PASS） | `npm test`：执行 12 项测试 |
+| 生产构建 | 通过（PASS） | `npm run build`：Vite `/ActionDBG/` 输出 |
+| 浏览器集成 | 通过（PASS） | `CHROMIUM_PATH=/usr/bin/chromium npm run test:browser`：生产预览 4 项场景通过 |
+| 开发入口可用 | 通过（PASS） | 启动 `npm run dev -- --port 5173 --strictPort`；本地 HTML 和转换后的主模块请求成功 |
+| GitHub Actions 执行 | 未执行（NOT RUN） | 已编写工作流；本地结果不能证明托管 CI 状态 |
+| GitHub Pages 部署 | 未执行（NOT RUN） | 需要经审查合入 main，并将 Pages 来源设为 GitHub Actions |
+| 真人体验评价 | 未执行（NOT RUN） | 仍需玩家对清晰度、压力和中断的反馈 |
 
-Browser environment: installed Chromium on Linux, software WebGL allowed, 1280×800 desktop viewport. After the full four-test pass, a small change preserved native terminal-button keyboard activation; the affected keyboard and pause/motion tests were rerun and both passed. Real clicks and keyboard input drive cards, submission and retry; no production gameplay-control hook was added. Blur and hidden-page event wiring is exercised with dispatched events and temporary document visibility overrides; this is not a manual OS/tab switching session. Canvas-only captures differ during planning, proving continued visible motion, and the active scene screenshot was inspected for fighters, intent, HUD and framing. Evidence files under `test-results/` are temporary and ignored by Git.
+浏览器环境：Linux 上已安装 Chromium，允许软件 WebGL，1280×800 桌面视口。完整四项测试通过后，小改动保留胜负按钮的原生键盘激活；受影响的键盘及暂停／动作测试重跑通过。实际点击和键盘驱动卡牌、提交与重试；未增加生产玩法控制钩子。通过分发事件和临时覆盖 document 可见性测试失焦／隐藏页面适配，非手动操作系统／标签页切换。选牌期间画布截图有差异，证明可见动作继续；活动场景截图检查角色、意图、HUD 与构图。`test-results/` 证据为临时文件，Git 已忽略。
 
-## Acceptance coverage
+## 验收覆盖
 
-| Acceptance | Result | Evidence / limitation |
+| 验收 | 结果 | 证据／限制 |
 | --- | --- | --- |
-| AC-01 ordinary play, damage and counter loop | PASS | Rules and keyboard/mouse browser paths execute the phases and check HP/AP |
-| AC-02 visible slow motion and unscaled expiry | PASS | Visual time advances at 0.15 in rule test; decision countdown advances normally; changed canvas-only captures; browser expiry submits queue |
-| AC-03 resources, unique queue and cooldown | PASS | Ordered cost reservation, removal, duplicate submission prevention, N+1 unavailable/N+2 ready, shared counter AP |
-| AC-04 guard/counter/lethal and chain bounds | PASS | Full light block, partial heavy block, counter cancellation, terminal state freeze and one counter window per round |
-| AC-05 readable feedback | PASS for implemented information | Inspected active scene/HUD, light/heavy text, full card reasons, preview vs in-motion/pending/resolved actions, result log. Comprehension by a new human player remains untested |
-| AC-06 focus lifecycle | PASS for automated adapters | Pause freezes both clocks, blocks input, clears held keys and resumes with reset frame baseline; real OS/tab behavior should also be checked in user playtest |
-| AC-07 terminal cancellation and five restarts | PASS | Victory/defeat stop future mutation; browser repeats reset five times with initial HP/AP/round; one RAF/listener registration is maintained |
-| AC-08 short game and two strategies | PASS for mechanics; feedback NOT RUN | Rule tests prove attack-first and counter-saving wins; browser plays an attack-first win, idle loss and immediate retries. Fun, time-pressure perception and disruption require human feedback |
+| AC-01 普通出牌、伤害与反击循环 | 通过 | 规则与键盘／鼠标浏览器路径执行各阶段，检查 HP／AP |
+| AC-02 可见慢动作与不缩放的超时 | 通过 | 规则测试视觉时间以 0.15 推进；决策计时正常推进；画布截图变化；浏览器超时提交队列 |
+| AC-03 资源、队列唯一性与冷却 | 通过 | 有序费用预留、移除、防重复提交、N+1 不可用／N+2 可用、共享反击 AP |
+| AC-04 格挡／反击／致死与阶段链限制 | 通过 | 完全挡轻击、部分挡重击、反击取消、终止状态冻结、每轮一个反击窗口 |
+| AC-05 可读反馈 | 已实现信息通过 | 检查场景／HUD、轻重文本、完整不可用原因、预览与演出中／待执行／已结算、结果日志。新玩家理解程度尚未测试 |
+| AC-06 焦点生命周期 | 自动适配通过 | 暂停冻结双时钟、阻止输入、清理持续按键，以重置帧基线恢复；真实系统／标签页行为仍需玩家检查 |
+| AC-07 胜负取消与五次重开 | 通过 | 胜负阻止后续变化；浏览器五次恢复初始 HP／AP／轮次；只维持一次 RAF／监听注册 |
+| AC-08 短局与两种策略 | 机制通过；反馈未执行 | 规则测试证明优先进攻及保留反击资源可胜利；浏览器完成进攻胜利、闲置失败与立即重试。趣味性、时间压力感和打断需真人反馈 |
 
-## Lead review and repairs
+## 主代理审查与修复
 
-Workers implemented disjoint rule/test and browser files using the supported `gpt-6-luna` model (the skill's older model binding was unavailable). Lead inspected actual sources and test output, then repaired:
+执行代理用受支持的 `gpt-6-luna` 实现互不重叠的规则／测试及浏览器文件（技能旧模型绑定不可用）。主代理检查实际源码和输出后修复：
 
-- hidden error/pause layers overriding the HTML hidden attribute;
-- a foreground arena wall/columns obscuring the fighters;
-- Counter preview expiry incorrectly skipping rather than submitting;
-- cooldown explanation priority and pending-vs-resolved labels;
-- stale counter animation history affecting later rounds;
-- Guard's distinct shield pose and character facing/swing presentation;
-- paused controls, input-listener teardown, focus resumption and excessive unchanged HUD rebuilds;
-- missing favicon causing a real 404 console error.
+- 隐藏的错误／暂停层覆盖 HTML hidden 属性；
+- 前景竞技场墙／柱遮挡角色；
+- 反击预览超时错误地跳过而非提交；
+- 冷却说明优先级和待执行／已结算标签；
+- 旧反击动画历史影响后续轮次；
+- 格挡独特盾牌姿势及角色朝向／挥剑表现；
+- 暂停控件、输入监听卸载、焦点恢复和过多不变 HUD 重建；
+- 缺失 favicon 导致真实 404 控制台错误。
 
-Repeated only checks needed after these relevant fixes. Screenshots supported visual review; they were not used as a substitute for gameplay assertions. Screenshot baselines were deferred because this primitive prototype has time-varying animation and no approved visual baseline. Behavioral browser tests and active captures cover the initial target.
+修复后仅重跑必要检查。截图支持视觉审查，不代替玩法断言。基础几何原型有随时间变化的动画且没有批准的视觉基线，因此暂缓截图基线。行为浏览器测试和活动截图覆盖初始目标。
 
-## Limits and next feedback
+## 限制与下一轮反馈
 
-The JavaScript bundle is approximately 510 kB minified / 131 kB gzip, primarily Three.js, and Vite reports its 500 kB advisory warning. No arbitrary warning threshold was raised. Headless results do not imply a universal frame rate or tested hardware performance. Runtime uses self-authored primitive geometry and an SVG icon; no external asset licensing or generation jobs are involved.
+JavaScript 压缩后约 510 kB／gzip 131 kB，主要为 Three.js；Vite 提示 500 kB 建议警告，未随意调高阈值。无界面结果不代表通用帧率或已测试硬件表现。运行时使用自制基础几何和 SVG 图标，无外部资产授权或生成任务。
 
-Ask the player: Can you read light/heavy intent? Does the four-second window create useful pressure? Is saving two AP for Counter understandable? Does the counter phase interrupt too often? These answers should drive balance/hand-model changes rather than treating this experiment's defaults as permanent design.
+向玩家收集：能否读懂轻／重击意图？四秒窗口是否带来有用压力？保留两点 AP 反击是否易懂？反击阶段是否打断过多？这些反馈应指导平衡／手牌模型修改，不将实验默认值固化为永久设计。
 
-## Rear battle-camera update
+## 背后战斗镜头更新
 
-On 2026-10-12, changed fixed framing to a Pokémon-style diagonal view from behind the player. The near player's back occupies the lower-left foreground; the far opponent's front remains visible above and to the right. Fighter positions, facings and world-axis attack animations are unchanged. Impact shake is added relative to the new camera home instead of resetting its X position.
+2026-10-12 将固定构图改为宝可梦式玩家背后斜视角。近处玩家背面占左下前景，远处对手正面在其右上可见。角色位置、朝向和世界坐标攻击动画不变。命中抖动相对新常驻机位叠加，不重置其 X 坐标。
 
-Typecheck and production build passed. A focused Playwright browser check against the built preview used real start/card/submit/restart input, asserted the Heavy Strike action phase, captured planning at 1280×800 and 1600×1000 plus the subsequent strike-resolution view, and reported no console/page errors or horizontal overflow. The three captures were visually inspected for actor facing, occlusion, framing and HUD placement. Gameplay-rule tests were not repeated because the change touches only rendering and requirement/design documentation. Local screenshot evidence is stored under `/tmp/actiondbg-rear-*.png` and is not committed. Hosted deployment of this update is not yet verified.
+类型检查与生产构建通过。聚焦 Playwright 检查使用生产预览和实际开始／出牌／提交／重开输入，断言重斩行动阶段，采集 1280×800、1600×1000 选牌与随后的攻击结算，无控制台／页面错误或横向溢出。三张截图检查朝向、遮挡、构图与 HUD。修改仅触及渲染和需求／设计文档，因此未重跑玩法规则测试。本地证据 `/tmp/actiondbg-rear-*.png` 未提交。该更新托管部署尚未验证。
 
-## First presentation iteration (2026-10-13)
+## 首轮表现迭代（2026-10-13）
 
-Used the installed Three.js director, UI, gameplay-feel and QA guidance. The UI and scene workers used the supported `gpt-6-luna` fallback documented above; the lead reviewed their changes and corrected terminal-feedback settling and reduced-motion recoil. This iteration changes presentation only: the combat rules, card costs, cooldowns and decision windows remain unchanged.
+使用已安装的 Three.js 导演、界面、游戏手感和 QA 指导。界面及场景执行代理使用上述受支持的 `gpt-6-luna` 备选；主代理审查后修正终止反馈收尾和降低动态效果后坐。仅修改表现，规则、卡牌费用、冷却和决策窗口不变。
 
-The arena now spans the main content width. Compact health/intent overlays and a phase countdown keep the fighters visible; action points show available versus reserved costs, the ordered queue stays visible, and native keyboard-operable disclosure contains detailed outcomes and history. Card reasons remain readable. Guard's latest outcome uses the resolved log event, preventing the next round's incoming damage from being reported as damage already taken.
+竞技场占据主内容宽度。紧凑生命／意图覆盖层及阶段倒计时保持角色可见；AP 显示可用／预留费用，有序队列保持可见，原生可键盘操作的展开区容纳详细结果／历史。不可用原因可读。格挡最新结果使用已结算日志事件，避免把下一轮来袭伤害报告为已受伤害。
 
-Procedural armor silhouettes, anticipation, strike contact/recovery, guarded poses, parry deflection, damage labels and brief impact flashes provide visual feedback. Feedback observes actual snapshot changes and never applies damage. Pause freezes feedback; restart clears it; final hit feedback settles after combat ends. Reduced-motion preference suppresses shake, recoil and label drift. Camera home and target preserve the rear-player/front-opponent framing.
+程序化盔甲轮廓、起手、攻击接触／恢复、格挡姿势、反击偏转、伤害标签和短暂闪光提供反馈。反馈观察实际快照，不施加伤害。暂停冻结，重开清除；战斗终止后最后命中反馈仍能收尾。降低动态效果抑制抖动、后坐和标签漂移。常驻镜头及目标保持玩家背面／对手正面构图。
 
-Validation: strict type checking, 12 gameplay-rule tests and the production build passed. The final `CHROMIUM_PATH=/usr/bin/chromium npm run test:browser` run passed all 5 scenarios against the production preview (2.1 minutes). The added browser scenario uses Playwright's clock with real keyboard inputs to verify native history disclosure, reservation/removal and a full block reporting zero damage. Existing realtime scenarios continue to exercise expiry, counter, cooldown, focus pause, win/loss and restart.
+验证：严格类型检查、12 项规则测试及生产构建通过。最终 `CHROMIUM_PATH=/usr/bin/chromium npm run test:browser` 在生产预览的 5 个场景全部通过（2.1 分钟）。新增场景用 Playwright 时钟及实际键盘验证原生历史展开、预留／移除，以及完整格挡报告零伤害。原有实时场景继续测试超时、反击、冷却、焦点暂停、胜负和重开。
 
-A separate real-input capture run inspected active planning at 1280×800 and 1600×1000, open history and reduced-motion preference. No console/page errors or horizontal overflow were reported. A native, unpaused CDP screencast captured 40 frames through selection, attack and counter input; inspected frames show the preserved framing, advancing action pose and enemy impact flash. Local evidence is `/tmp/actiondbg-visual-20261013/manifest.json`, its images, and `active-sequence.json`; these temporary artifacts are not committed or a substitute for gameplay assertions. No upstream visual scorecard or hardware frame-rate measurement was claimed.
+独立实际输入采集检查 1280×800、1600×1000 活动选牌、展开历史、降低动态效果，无控制台／页面错误或横向溢出。未暂停的原生 CDP 录屏记录选牌、攻击和反击的 40 帧；检查帧显示构图保持、动作姿态推进和敌人命中闪光。本地证据 `/tmp/actiondbg-visual-20261013/manifest.json`、相关图像、`active-sequence.json` 为临时文件，不提交，也不替代玩法断言。未使用上游视觉评分或测量硬件帧率。
 
-The current bundle is 553.95 kB minified / 143.76 kB gzip; Vite's existing 500 kB advisory remains. Models are still self-authored geometric prototypes. No anime model, external asset, generation call or paid service was introduced. Human readability/feel evaluation and hosted CI/Pages deployment remain unverified.
+当前包压缩后 553.95 kB／gzip 143.76 kB，Vite 既有 500 kB 提示保留。模型仍为自制几何原型，未加入二次元模型、外部资产、生成调用或付费服务。真人可读性／手感和托管 CI／Pages 部署尚未验证。

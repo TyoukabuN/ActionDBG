@@ -1,25 +1,25 @@
-# Community Research Handoff
+# 社区研究交接
 
-Continue documentation research in the Codex desktop client using the tools actually available there. The cloud shell's access limits do not establish that desktop browser or web-search tools have the same limits.
+在 Codex 桌面客户端使用实际可用工具继续文档研究。云端终端的访问限制不能证明桌面浏览器／网页搜索也有相同限制。
 
-## Entry points
+## 入口
 
-- [Game vision](../design/protoTypeImages.md): original gameplay ideas and unresolved alternatives.
-- [Agent guidelines review](../design/agent-guidelines-review.md): rationale for the project rules and original access limitations.
-- [Search provider tests](community-search-provider-test.md): initial failures and later authenticated Tavily/Exa results.
-- [Community research skill](../../.agents/skills/community-research/SKILL.md): evidence collection and review workflow.
-- [Project agent instructions](../../AGENTS.md): development scope, skill routing, architecture, and validation requirements.
+- [游戏构想](../design/protoTypeImages.md)：原始玩法与待定方案。
+- [代理规范审查](../design/agent-guidelines-review.md)：项目规则依据及最初访问限制。
+- [搜索服务商测试](community-search-provider-test.md)：初始失败及后续认证 Tavily／Exa 结果。
+- [社区研究技能](../../.agents/skills/community-research/SKILL.md)：证据采集与审查流程。
+- [项目代理说明](../../AGENTS.md)：开发范围、技能路由、架构和验证要求。
 
-## Verified cloud capabilities
+## 已验证云端能力
 
-Tavily returned relevant Reddit links and brief excerpts. Exa returned relevant GitHub PR text and some comments. Neither retrieved the tested Reddit original post. No native Exa plugin or browser tool was callable in the tested cloud session. Credentials are configured outside the repository; they are not included in Git and must not be assumed to transfer to a desktop environment.
+Tavily 返回相关 Reddit 链接及短摘录，Exa 返回相关 GitHub PR 文本及部分评论。两者均未取得测试 Reddit 原帖。当时云端会话没有可调用的原生 Exa 插件或浏览器工具。凭据在仓库外配置，不进入 Git，也不能假定自动传到桌面环境。
 
-The user supplied a desktop-client test report indicating successful Reddit page reads through its web tools and its browser after user-completed verification. That report is supplied evidence, not an independently repeated desktop test by the cloud agent.
+用户提供的桌面报告显示，其网页工具和经用户完成人机验证的浏览器成功读取 Reddit。该报告属于用户提供证据，云端代理未独立重复桌面测试。
 
-## Next desktop task
+## 下一步桌面任务
 
-Use `$community-research` to complete the Reddit portion of the AGENTS.md review. Read a small, relevant sample from r/threejs, r/gamedev, and r/gamedesign using accessible web/browser tools. Use GitHub and official documentation to verify technical claims; the Three.js forum is an optional source whose access has not been tested here.
+使用 `$community-research` 完成 AGENTS.md 审查中的 Reddit 部分。通过可访问网页／浏览器工具，读取 r/threejs、r/gamedev、r/gamedesign 的小规模相关样本。用 GitHub 和官方文档验证技术说法；Three.js 论坛可选，本文未测试其访问。
 
-Record original links, dates, actual post/comment passages, tool channels, and counterexamples. Prioritize playable prototype scope, frame timing and hidden-tab behavior, meaningful gameplay tests, and card-combat decision windows. Distinguish current technical facts from design opinions. Update the existing review record and add only durable project rules to AGENTS.md; do not implement the game as part of this documentation task.
+记录原始链接、日期、实际帖子／评论段落、工具通道和反例。优先研究可玩原型范围、帧时间／隐藏页行为、有意义的玩法测试和卡牌战斗决策窗口。区分当前技术事实与设计观点。更新现有审查记录，只把持久项目规则加到 AGENTS.md；本次文档任务不实现游戏。
 
-If access remains blocked, retain the verified GitHub-based guidance and explicitly leave Reddit coverage incomplete. Do not treat snippets as complete discussion evidence or repeat API setup merely to complete this review.
+仍被阻止时，保留已验证 GitHub 指导，明确标记 Reddit 未完成。不把摘要当完整讨论证据，也不为了完成审查而重复 API 设置。

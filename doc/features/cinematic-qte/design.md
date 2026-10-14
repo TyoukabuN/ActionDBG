@@ -1,73 +1,73 @@
-# Cinematic QTE — Design
+# 演出式 QTE — 设计
 
-Status: revised design draft; gameplay changes NOT IMPLEMENTED. Updated: 2026-10-14.
-Upstream: [PRD](prd.md); latest user correction takes precedence over its earlier Response-loop requirements.
+状态：修订后的设计草案；玩法变更**尚未实现**。更新日期：2026-10-14。
+上游：[PRD](prd.md)；用户最新纠正优先于此前的 Response 循环需求。
 
-## Turn-based combat contract
+## 回合制战斗约定
 
-The game is a turn-based card battle. A **turn** belongs to one acting side; a **Counter phase** is a reaction inserted into that turn, not a separate turn. A round/cycle, if retained for UI or cooldown counting, must not be conflated with a single enemy attack. The old enemy wind-up → player Response → player ordinary actions → Counter sequence below is superseded for future implementation. Existing source code and previous verification still describe that old playable prototype.
+本游戏是回合制卡牌对战。一个**回合**属于当前行动方；**反击阶段（Counter）**是插入该回合的应对阶段，不是独立回合。如果界面或冷却计数仍使用轮次／循环，不得将它与敌人的单次攻击混为一谈。未来实现将替换旧的“敌方前摇 → 玩家应对（Response）→ 玩家普通行动 → 反击”流程。现有代码与此前验证仍描述旧的可玩原型。
 
-Confirmed enemy-turn flow:
+已确定的敌人回合流程：
 
-1. The enemy plays a card. Commit the card and show it in the upper-right immediately, before checking reactions; its presentation must not depend on Counter being available.
-2. Inspect the committed card's effect. If it is a damage card targeting the player, check whether the player has at least one **currently usable** Counter-tagged card. A non-damage card bypasses the Counter check and resolves its own effect.
-3. If a usable Counter card exists, enter the bounded Counter phase before applying the incoming damage. Slow motion, close framing and diagonal black bars communicate the reaction opportunity.
-4. The player may play an eligible Counter card or pass. A valid play consumes its cost once and resolves its defined effect. For the existing prototype Counter, cancel the pending enemy attack and deal 2 damage. Pass/expiry leaves the enemy card pending for normal resolution.
-5. If no usable Counter exists, proceed directly to the enemy card's resolution. Do not open an empty reaction window or a generic Response phase.
-6. Finish that card's effects, damage and terminal checks. Continue the enemy turn if its future turn rules allow more cards; otherwise end the turn. An individual card finishing does not itself imply that the turn has ended.
-7. At the turn-end boundary, recover only the acting side's AP once, then hand control to the next side. The other side's AP remains unchanged. Terminal combat stops further transitions and recovery.
+1. 敌人打出一张牌。先提交这张牌，并立即在右上角展示，再检查应对条件；显示卡牌不得依赖反击是否可用。
+2. 检查已提交卡牌的效果。如果是以玩家为目标的伤害牌，检测玩家是否至少拥有一张**当前能够使用**、带反击标签的牌。非伤害牌跳过反击检查，结算自身效果。
+3. 有可用反击牌时，在应用敌方伤害之前进入有时间上限的反击阶段。慢动作、近景和斜向黑边共同突出这一机会。
+4. 玩家可以打出符合条件的反击牌或放弃。合法出牌只扣费一次，再结算该牌定义的效果。现有原型的反击牌会取消待结算的敌方攻击，并造成 2 点伤害。放弃或超时则保留敌方卡牌，随后正常结算。
+5. 无可用反击牌时，直接进入敌方卡牌结算，不开启空的反击窗口或通用 Response 阶段。
+6. 完成该牌的效果、伤害和胜负检查。如果后续回合规则允许敌人继续出牌，就继续敌人回合；否则结束回合。单张牌结算完成不意味着回合已经结束。
+7. 到达回合结束边界时，只恢复当前行动方的 AP 一次，再将行动权交给另一方。另一方 AP 保持不变。战斗结束后停止后续转换与恢复。
 
 ```mermaid
 flowchart TD
-  A[Enemy turn: play card and show it] --> B{Damage card targeting player?}
-  B -->|No| F[Resolve committed card]
-  B -->|Yes| C{Player has a usable Counter card?}
-  C -->|No| F
-  C -->|Yes| D[Counter phase]
-  D -->|Play Counter| E[Resolve reaction and update/cancel pending attack]
-  D -->|Pass or expire| F
+  A[敌人回合：出牌并展示] --> B{是否为针对玩家的伤害牌？}
+  B -->|否| F[结算已提交的卡牌]
+  B -->|是| C{玩家有可用反击牌？}
+  C -->|否| F
+  C -->|是| D[反击阶段]
+  D -->|打出反击牌| E[结算反击，更新或取消待结算攻击]
+  D -->|放弃或超时| F
   E --> F
-  F --> G{Combat ended?}
-  G -->|Yes| H[Terminal result]
-  G -->|No| I{Enemy turn finished?}
-  I -->|No| A
-  I -->|Yes| J[Turn end: recover acting side AP only]
-  J --> K[Next side's turn]
+  F --> G{战斗已结束？}
+  G -->|是| H[胜负结果]
+  G -->|否| I{敌人回合已结束？}
+  I -->|否| A
+  I -->|是| J[回合结束：只恢复当前行动方 AP]
+  J --> K[另一方的回合]
 ```
 
-There is **no Response phase during an enemy turn**. The player cannot play ordinary attack or Guard cards during that turn merely because AP or time remains. A Counter resolves back into the pending enemy-card sequence, never into ordinary player selection. Ordinary player card selection belongs to the player's own turn; its detailed sequence and timing remain to be agreed.
+**敌人回合没有 Response 阶段。** 即使还有 AP 或时间，玩家也不能在敌人回合中随意打出普通攻击或格挡牌。反击结算后继续处理待结算的敌方卡牌，不返回普通选牌。玩家普通选牌属于自己的回合，其具体流程与时间规则尚待确定。
 
-## Counter eligibility and resolution ownership
+## 反击资格与结算归属
 
-A usable Counter must be present in the player's current hand, carry the Counter tag, satisfy the incoming event's targeting/trigger restrictions, be out of cooldown, be unused under the applicable usage limit, and be affordable with current player AP. Merely owning a Counter card is insufficient. Revalidate these conditions when the player actually submits a reaction; reject invalid or repeated input without spending AP or resolving effects. Current fixed-card costs/effects are provisional values, not a new commitment to a full hand/deck system.
+可用反击牌必须在玩家当前手牌中、带反击标签、满足来袭事件的目标及触发限制、不处于冷却、未超过适用的使用次数限制，且当前玩家 AP 足以支付费用。仅拥有反击牌并不够。玩家实际提交反击时需重新验证条件；拒绝非法或重复输入，不扣 AP，也不结算效果。当前固定卡牌的费用与效果只是暂定数值，不代表已经决定建立完整手牌／牌库系统。
 
-Combat owns the active side, turn boundary, committed enemy card and pending effect, reaction eligibility, AP, cooldown and terminal state. Presentation reads snapshots and events; it must not infer the acting side from the camera, animation or UI label. The pending card is committed once, with one resolution/cancellation outcome. One incoming card opens at most one Counter phase in this revision; reactions do not trigger recursive Counter chains. Lethal reaction damage ends combat and cancels the pending enemy action immediately.
+Combat 负责当前行动方、回合边界、已提交敌方卡牌及待结算效果、反击资格、AP、冷却和终止状态。表现层读取快照与事件，不得通过镜头、动画或界面文案推断行动方。待结算卡牌只提交一次，并且只产生一次结算或取消结果。本次设计中，一张来袭卡牌最多开启一次反击阶段；反击不得递归触发反击链。反击造成致死伤害时，立即结束战斗并取消待执行的敌方行动。
 
-## AP timing and open decisions
+## AP 时机与待定事项
 
-AP recovers **at turn end**, not on entering Response, opening/closing Counter, finishing an individual card, or starting the next turn. Counter uses the player's current AP; no resource refill may be inserted immediately before the eligibility check to make it available. Initialization may set starting AP without counting as a turn-end recovery. Pause and restart must not create duplicate recovery events.
+AP 在**回合结束时**恢复，不在进入 Response、开启／关闭反击、单张牌结算完成或下一回合开始时恢复。反击使用玩家当前 AP；不得在检查资格前临时补充资源使反击可用。初始化可以设置初始 AP，但不算回合结束恢复。暂停与重开不得制造重复恢复事件。
 
-Each side owns a separate AP balance. Only the side whose turn is ending receives recovery: player-turn end recovers player AP; enemy-turn end recovers enemy AP. A reacting player is not the acting side of the enemy turn. AP spent on Counter therefore remains spent after the enemy turn ends and is recovered only when the player's own turn subsequently ends. Passing a reaction does not change either AP balance. Recovery amount remains an open balance decision below.
+双方分别拥有独立 AP。只有正在结束回合的一方获得恢复：玩家回合结束恢复玩家 AP，敌人回合结束恢复敌人 AP。进行反击的玩家不是敌人回合的当前行动方。因此，反击消耗的 AP 在敌人回合结束后仍保持消耗状态，要等玩家随后自己的回合结束才恢复。放弃反击不改变任何一方 AP。具体恢复量仍属于下列待定平衡规则。
 
-The following details are intentionally unresolved and block gameplay implementation readiness:
+以下事项尚未确定，在明确之前不能进入玩法实现阶段：
 
-- Turn order/first actor; whether an enemy turn plays one card or several and what ends it.
-- Player-turn selection, permitted ordinary cards, decision timer and explicit end-turn behavior. The old 4-second Response loop is not automatically carried into this design.
-- Whether recovery refills to maximum or adds a fixed amount, and the cooldown/once-per-turn counting boundary after distinct side turns are introduced.
-- Guard duration across the player/enemy turn boundary; the current guard-clearing rule cannot be copied without specifying when its protection expires.
+- 回合顺序与先手；敌人回合打一张还是多张牌，以及什么条件结束回合。
+- 玩家回合的选牌流程、允许的普通牌、决策倒计时和主动结束回合的行为。不能自动沿用旧的 4 秒 Response 循环。
+- AP 是补满上限还是恢复固定数量；引入双方独立回合后，冷却与每回合使用次数的计数边界。
+- 格挡如何跨越玩家／敌人回合边界。在明确保护何时失效前，不能照搬当前清空格挡的规则。
 
-## Timing, lifecycle and scope
+## 时间、生命周期与范围
 
-Enemy-card anticipation is presentation inside the enemy turn, followed by the eligibility check before damage. Counter decision time uses real seconds while scene animation slows; any ordinary player-turn time budget is separate and currently unspecified. Pause freezes both simulation and presentation, clears held input on focus loss and resumes without consuming hidden time. Restart clears the active turn, pending card, reaction, AP-recovery markers, cooldown and visual state. Preserve screen buttons, keyboard and portrait touch support.
+敌方卡牌的起手演出发生在敌人回合内，在伤害发生前检查反击资格。反击倒计时使用现实秒数，同时场景动画减速；玩家普通回合的时间预算是独立事项，目前尚未确定。暂停冻结模拟和表现时间，失焦时清理持续按键，恢复后不扣除离开页面期间的时间。重开清空当前回合、待结算卡牌、反击、AP 恢复标记、冷却和视觉状态。保留屏幕按钮、键盘及竖屏触控支持。
 
-This revision authorizes design only: no Combat/API/state-enum migration, UI rewiring, test expectation changes or balance changes are included. Previous PRD, implementation plan, tasks and acceptance evidence remain records of the older implementation and must be reconciled before a later implementation task. No new rules are verified by the previous test passes.
+本次修订仅授权设计：不迁移 Combat／API／状态枚举，不重接界面，不修改测试预期或平衡。此前 PRD、实施计划、任务和验收证据仍是旧实现的记录，后续开始实现前需要同步。旧测试通过不代表新规则已验证。
 
-Design-review scenarios for future implementation: damage with eligible Counter; damage without Counter due to hand/AP/cooldown; non-damage card; Counter pass/expiry; repeated input; lethal Counter; multiple cards with no AP recovery between them; single turn-end recovery for the acting side only; Counter spending persisting into the player's next turn until that turn ends; pause/resume and restart across reaction/turn-end boundaries. These are planned checks, not executed gameplay tests.
+未来实现的设计审查场景：伤害牌且有合法反击；因手牌／AP／冷却无法反击；非伤害牌；放弃／超时；重复输入；致死反击；连续多张牌之间不恢复 AP；回合结束只恢复当前行动方一次；反击消耗持续到玩家下一回合结束；反击／回合结束边界的暂停恢复和重开。这些是计划检查，尚未执行玩法测试。
 
-## Retained cinematic presentation
+## 保留的战斗演出
 
-A small presentation camera director selects authored, same-side poses by phase, active card and observed HP/guard/counter changes. The stable establishing, wind-up, decision and Counter-window axis sits immediately behind the player's right shoulder: the player frames the foreground while the opponent remains the focal point. Quick, Heavy, Guard, parry, impact and terminal events use lower or more oblique panels without crossing the combat axis. Counter immediately overrides an earlier impact hold, pushes closer to the opponent and adds animated top/bottom bars for the slow-time decision. The upper bar travels diagonally from the upper-right while the lower bar travels diagonally from the lower-left; opposite temporary tilts settle into asymmetric trapezoids that leave the combat center open. Bounded real delta drives transitions; a brief impact/parry hold otherwise survives phase advancement. No camera event mutates Combat. Decision poses settle and remain stable; pause freezes pose and hold timers; reset discards previous transitions; reduced motion uses the right-shoulder overview without dolly/shake and snaps the bars instead of sliding them. Arena publishes current shot as a canvas data attribute for accessible inspection/tests, with no gameplay-control hook (FR-04–05).
+小型表现层镜头导演根据阶段、当前卡牌及观察到的生命／格挡／反击变化，选择预设的同侧机位。稳定的开场、前摇、决策和反击窗口机位位于玩家右肩后方：玩家构成前景，对手保持为焦点。快斩、重斩、格挡、反击、命中和胜负事件使用更低或更斜的分镜，不越过战斗轴线。反击立即覆盖此前的命中镜头停留，拉近对手，并为慢动作决策加入上下黑边。上黑边从右上角斜向进入，下黑边从左下角斜向进入；临时的相反倾角最终落位为非对称梯形，中间保持开放。转换使用有上限的真实时间增量；短暂的命中／反击镜头停留可跨越阶段切换。镜头事件不修改 Combat。决策机位落定后保持稳定；暂停冻结机位及停留计时；重置清除旧转换；降低动态效果模式使用右肩稳定机位，无推拉或抖动，黑边直接落位。Arena 通过画布数据属性公布当前分镜供检查与测试，不提供控制玩法状态的钩子（FR-04–05）。
 
-HTML buttons share one input adapter with keyboard and touch. Preserve immediate card activation and snapshot-based availability; future prompts must identify the acting side and separate ending a turn from passing a Counter. The previous QTE/queue comparison behavior is historical and requires a separate compatibility decision before migration. Committing any enemy card reveals it in the upper-right playfield, whether or not a Counter window opens. It derives attack name and damage from the snapshot and enters with a short fade, translation, rotation and overshoot; it remains visible through that card’s resolution and is replaced by the next enemy card or cleared after its presentation finishes. If Counter is unavailable because of AP or cooldown, the already-visible enemy card resolves directly; black bars remain tied to the Counter presentation. Pause freezes the animation and reduced-motion preference uses a fade only. Mode changes replace the Combat instance only in ready/terminal states, preserve focus gating and reset render baselines. Existing native history interaction remains independent.
+HTML 按钮与键盘、触屏共用输入适配器。保留即时出牌和基于快照的可用性判断；未来提示必须指出当前行动方，并区分结束回合与放弃反击。此前 QTE／队列对照行为属于历史实现，迁移前需另行决定兼容方案。任何敌方卡牌提交后都在右上角展示，不论是否开启反击窗口。名称与伤害来自快照，使用短暂淡入、位移、旋转和轻微超调入场；卡牌持续显示到自身结算完成，随后由下一张敌方牌替换或在演出结束后清除。AP 或冷却导致反击不可用时，已显示的敌方牌直接结算；黑边仍绑定反击演出。暂停冻结动画，降低动态效果偏好仅使用淡入。模式切换仅在准备或胜负状态替换 Combat 实例，保留焦点约束并重置渲染基线。原生战斗历史交互保持独立。
 
-Arena observes the same HP and Guard boundaries to trigger pooled presentation effects: attack damage emits an 18-point dark-red burst and a fully absorbed Guard emits 14 additive metal-spark streaks. Fixed typed arrays, shared geometries and materials avoid per-frame allocation. The WebGL frame is composed as scene base, black-bar insert, actors, then feedback/effects; the actor redraw lets silhouettes cross the bars and the last effect pass keeps impact particles readable. Renderer diagnostics are exposed for capture alongside the order. No new dependency, asset or draw loop. Camera uses bounded interpolation and reusable vectors; FOV updates only on change. Risks: close shots hide threat, event holds leak into restart, QTE resets time or permits repeated cards, and the added actor/effect passes increase draw calls. Unit/browser tests, renderer diagnostics and actual motion/viewport capture cover these, while human perception of cinematic quality remains a playtest question.
+Arena 观察生命和格挡结算边界，触发复用的表现效果：攻击伤害生成 18 个暗红血液粒子，完全格挡生成 14 条叠加混合的金属火花。固定类型数组、共用几何体与材质避免逐帧分配。WebGL 帧按“场景底图 → 黑边 → 角色 → 反馈／特效”合成；重画角色使轮廓可以越过黑边，最后的特效绘制保证命中粒子可读。渲染诊断与绘制顺序一同公布供取证。不增加依赖、资产或绘制循环。镜头使用有上限的插值和复用向量，只在 FOV 变化时更新投影。风险包括近景遮挡威胁、镜头停留残留到重开、QTE 重置时间或允许重复出牌，以及新增角色／特效绘制通道增加绘制调用。单元／浏览器测试、渲染诊断和实际动作／视口采集覆盖这些风险；演出质量仍需真人试玩评价。

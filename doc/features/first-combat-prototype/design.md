@@ -1,52 +1,53 @@
-# First Combat Prototype — Technical Design
+# 首个战斗原型 — 技术设计
 
-Status: historical implemented design. Track: Full. Owner: lead. Updated: 2026-10-12.
+状态：历史实现设计。流程：完整。负责人：主代理。更新日期：2026-10-12。
 
-The 2026-10-14 [turn-based design correction](../cinematic-qte/design.md#turn-based-combat-contract) supersedes this document's enemy-attack/Response sequence for future development. Enemy turns have no ordinary Response phase; damage cards trigger a Counter check before resolution, and AP recovery belongs to turn end. That correction is design-only and is not yet implemented. The details below remain a record of the existing prototype.
-Upstream: [PRD](../../prd/first-combat-prototype.md).
+2026-10-14 的[回合制设计纠正](../cinematic-qte/design.md#回合制战斗约定)将替换本文的“敌方攻击／Response”流程，作为未来开发的依据。敌人回合没有普通 Response 阶段；伤害牌在结算前触发反击检查；AP 在回合结束恢复。该纠正仅完成设计，尚未实现。下文保留为现有原型的历史记录。
+上游：[PRD](../../prd/first-combat-prototype.md)。
 
-## Contract and acceptance map
+## 约定与验收映射
 
-The existing PRD is the product contract; the following IDs identify its acceptance groups without rewriting it: AC-01 complete ordinary play/damage/counter loop; AC-02 moving slow-motion and unscaled expiry; AC-03 shared AP, costs, queue uniqueness and cooldown; AC-04 guard/counter/lethal resolution and bounded triggers; AC-05 readable intent, preview/results and availability; AC-06 focus pause/resume; AC-07 terminal cancellation and five clean restarts; AC-08 short win/loss and two viable strategies. Human evaluation of fun/clarity remains playtest evidence, not an automated claim.
+现有 PRD 是产品约定；以下编号标识其验收组，不重写需求：AC-01 完整普通出牌／伤害／反击循环；AC-02 持续运动的慢动作及不缩放的超时；AC-03 共享 AP、费用、队列唯一性与冷却；AC-04 格挡／反击／致死结算和有限触发；AC-05 可读意图、预览／结果与可用性；AC-06 焦点暂停／恢复；AC-07 胜负取消与五次干净重开；AC-08 短局胜负与两种有效策略。趣味性／清晰度仍需真人试玩评价，不能由自动化测试宣称。
 
-## Boundaries and API
+## 模块边界与 API
 
-`src/combat.ts` owns all rules, clocks and state, with no Three.js/DOM dependencies. `src/scene.ts` renders primitive swordsmen and a fixed arena camera from snapshots. `src/main.ts` owns DOM, keyboard intents, pause listeners and the sole animation loop. UI never mutates the snapshot. `src/style.css` owns responsive layout. No physics engine, movement system, audio or external assets are required.
+`src/combat.ts` 负责全部规则、时钟和状态，不依赖 Three.js／DOM。`src/scene.ts` 从快照渲染基础几何剑士与固定竞技场镜头。`src/main.ts` 负责 DOM、键盘意图、暂停监听和唯一动画循环。界面不修改快照。`src/style.css` 负责响应式布局。不需要物理引擎、移动系统、音频或外部资产。
 
-Core exports:
-- `CardId = 'quick' | 'heavy' | 'guard' | 'counter'`.
-- `Phase = 'ready' | 'telegraph' | 'planning' | 'acting' | 'counter' | 'resolve' | 'victory' | 'defeat'`.
-- `CARDS`: ordered readonly definitions with `id`, `name`, `cost`, `damage`, `description`, `cooldownRounds`.
-- `Combat` methods: `start(): void`, `restart(): void`, `tick(realSeconds: number): void`, `toggleCard(id: CardId): boolean`, `submit(): void`, `skip(): void`, `setPaused(paused: boolean): void`, `availability(id: CardId): string | null`, `snapshot(): CombatSnapshot`.
-- Snapshot fields: `phase`, `round`, `playerHp`, `enemyHp`, `ap`, `maxAp`, `remaining` (unscaled window seconds), `queue: CardId[]`, `committed: CardId[]`, `activeCard: CardId | null`, `guard`, `enemyAttack: 'light' | 'heavy'`, `enemyDamage`, `visualTime`, `phaseElapsed`, `paused`, `log: string[]` (bounded), `cooldowns: Record<CardId, number>` (rounds unavailable including next round at use time). Snapshots are detached copies.
-- Scene exports `Arena` with constructor `(canvas: HTMLCanvasElement)`, `render(snapshot: CombatSnapshot): void`, `resize(): void`, `dispose(): void`.
+核心导出：
 
-## State and ordering
+- `CardId = 'quick' | 'heavy' | 'guard' | 'counter'`。
+- `Phase = 'ready' | 'telegraph' | 'planning' | 'acting' | 'counter' | 'resolve' | 'victory' | 'defeat'`。
+- `CARDS`：有序只读定义，字段为 `id`、`name`、`cost`、`damage`、`description`、`cooldownRounds`。
+- `Combat` 方法：`start(): void`、`restart(): void`、`tick(realSeconds: number): void`、`toggleCard(id: CardId): boolean`、`submit(): void`、`skip(): void`、`setPaused(paused: boolean): void`、`availability(id: CardId): string | null`、`snapshot(): CombatSnapshot`。
+- 快照字段：`phase`、`round`、`playerHp`、`enemyHp`、`ap`、`maxAp`、`remaining`（不缩放的窗口秒数）、`queue: CardId[]`、`committed: CardId[]`、`activeCard: CardId | null`、`guard`、`enemyAttack: 'light' | 'heavy'`、`enemyDamage`、`visualTime`、`phaseElapsed`、`paused`、`log: string[]`（有长度上限）、`cooldowns: Record<CardId, number>`（不可用轮数，使用时包括下一轮）。快照是与内部状态分离的副本。
+- 场景导出 `Arena`，构造参数 `(canvas: HTMLCanvasElement)`，方法 `render(snapshot: CombatSnapshot): void`、`resize(): void`、`dispose(): void`。
 
-Initialize in ready. Start/restart begins telegraph with full HP (10/12), light intent, round 1 and 3 AP. Telegraph lasts 1.1 real seconds (light) or 1.6 (heavy); then planning lasts 4 seconds. Numbers select/toggle cards, allowing removal/reordering by selection. Planning reserves projected costs in the queue; submitting spends AP exactly once and commits the ordered list. Empty submit/skip passes. Each committed card has a 0.55-second action beat; effects resolve at its end, in order. Lethal player attack stops immediately and clears pending actions. Ordinary attacks do not cancel living enemy attacks.
+## 状态与顺序
 
-After actions, open one 2-second counter window only if Counter has no cooldown and at least 2 AP remain. Counter selection is a one-card preview; submit or expiry with a queued Counter spends its cost, deals 2 damage and cancels enemy damage. Skip or empty expiry means taking enemy damage reduced by Guard, floored at zero. A 0.65-second resolution beat communicates results; then advance round, alternate light/heavy and restore AP. A card used in round N is unavailable in N+1 and returns in N+2. Counter never chains to another decision phase. Death cancels all pending actions and damage, and terminal inputs other than restart have no effect.
+初始化为 ready。开始／重开进入 telegraph，生命恢复为 10／12、轻攻击意图、轮次 1、AP 为 3。前摇使用现实时间：轻击 1.1 秒、重击 1.6 秒；随后选牌 4 秒。数字键选择／切换卡牌，通过重新选择允许移除／重排。选牌时队列预留预计费用；提交只扣 AP 一次并确定有序列表。空提交／跳过表示放弃。每张已提交卡牌播放 0.55 秒，在结束时按顺序结算效果。玩家攻击致死时立即停止并清空待执行行动。普通攻击不取消仍存活敌人的攻击。
 
-## Time and lifecycle
+行动结束后，仅在反击未冷却且剩余 AP 至少为 2 时开启一次 2 秒反击窗口。反击选牌是单卡预览；提交或带已选反击的超时会扣费、造成 2 点伤害并取消敌方伤害。跳过或空选牌超时会承受经格挡减免后的伤害，最低为零。0.65 秒结算演出传达结果，随后推进轮次、交替轻／重击并恢复 AP。第 N 轮使用的牌在 N+1 不可用，N+2 恢复。反击不连接新的决策阶段。死亡取消全部待执行行动与伤害；终止状态除重开外不响应输入。
 
-Decision windows use real elapsed time; visualTime advances at 0.15 during planning/counter and normally otherwise. Enemy animation remains visible during windows but animation pose is presentation rather than an independent damage clock. Phase transitions own all damage. The browser adapter bounds frame delta to 0.1 and advances fixed 1/60-second steps with bounded catch-up. Core tick can consume small steps without DOM timers. Explicit pause freezes both clocks. Blur/visibility pause clears keyboard state; focus resumes only if visible and resets timestamp/accumulator. Start and restart do not register listeners or create loops.
+## 时间与生命周期
 
-The root module removes its loop/listeners and disposes owned geometries/materials on HMR teardown. Canvas observes container size and caps pixel ratio at 2. WebGL initialization errors appear as text. Desktop keyboard/mouse only; HUD clicks do not target world interactions. No secret-bearing runtime code.
+决策窗口使用现实时间；选牌／反击时 `visualTime` 以 0.15 倍推进，其他阶段正常推进。窗口内敌人动画保持可见，但动画姿态只属于表现，不拥有独立伤害时钟。阶段转换负责全部伤害。浏览器适配器限制单帧增量为 0.1 秒，以固定 1/60 秒步长和有上限的追赶推进。核心 tick 可消费小步长，不使用 DOM 计时器。显式暂停冻结两个时钟。失焦／页面隐藏时暂停并清理持续按键；只在可见时恢复焦点，同时重置时间戳／累积器。开始和重开不注册监听器、不创建新循环。
 
-## Presentation and tradeoffs
+根模块在 HMR 卸载时移除循环／监听器，释放自身拥有的几何体与材质。画布观察容器大小，像素比上限为 2。WebGL 初始化错误以文本显示。此历史阶段只支持桌面键盘／鼠标；HUD 点击不触发场景交互。运行时代码不携带密钥。
 
-Use a warm stone arena, teal player and rust-red enemy, simple humanoid geometry and swords, readable windups, action lunges, guard/counter feedback and fixed framing. Frame the duel diagonally from behind the player, Pokémon-style: near player back in the lower-left foreground, far opponent front in the upper-right, without fighter or HUD overlap. Keep the existing world-axis attack directions and apply camera shake relative to its new home position. No generated assets or polish pipeline. HUD provides HP, intent/damage, AP, round, phase, timer, ordered preview, committed results and specific rejection reasons. Start/retry are explicit; 1–4 selects, Enter submits, Space skips, R restarts. Block repeated keydown; do not capture shortcuts in editable fields.
+## 表现与取舍
 
-Frozen time was rejected because the PRD explicitly tests slow motion. A general event engine and ECS were rejected for one deterministic encounter. No unresolved blocking technical choice remains. Timing/visual tuning is provisional and must be evaluated in human playtests.
+使用暖色石质竞技场、青绿玩家与锈红敌人、简单人形几何和剑，配合清晰起手、突进、格挡／反击反馈及固定构图。镜头从玩家背后斜向拍摄，类似宝可梦：近处玩家背面位于左下前景，远处对手正面位于右上，避免角色或 HUD 相互遮挡。保持现有世界坐标攻击方向，镜头抖动相对新的常驻位置应用。不使用生成资产或精修流程。HUD 提供生命、意图／伤害、AP、轮次、阶段、计时、有序预览、提交结果及具体不可用原因。开始／重试明确；1–4 选牌、Enter 提交、Space 跳过、R 重开。阻止重复 keydown，不拦截可编辑字段内的快捷键。
 
-### First presentation iteration (2026-10-13)
+PRD 明确要求慢动作，因此不采用完全冻结。单个确定性遭遇不需要通用事件引擎或 ECS。当时没有阻塞性的技术选择；时间和视觉调校为暂定值，需通过真人试玩评价。
 
-Keep the current camera, warm stone arena and teal/rust faction colors. Replace dashboard-like framing with a larger central playfield, compact HP/intent status, a prominent decision timer, a compact AP/ordered-queue strip and readable illustrated cards. Secondary combat history is collapsed by default but remains available through an accessible disclosure. Card costs, unavailable reasons, reserved AP and actual outcomes must remain explicit. Desktop is the target; narrow layouts must remain readable without claiming touch-game support.
+### 首轮表现迭代（2026-10-13）
 
-Improve anticipation, attack arcs, Guard's shield posture and Counter response using presentation-only animation. Apply hit flashes, short recoil and transient damage/block feedback to observed snapshot changes, exactly once per outcome. `Arena.render(snapshot, realSeconds = 0)` may consume a bounded render delta for feedback; the adapter passes this delta while the pure Combat tick/rules remain unchanged. Pause freezes effects, restart clears them, and reduced-motion preferences suppress nonessential shake/motion. No hitstop changes the decision clock, no audio/new asset services are introduced, and no premium/AAA quality claim is made.
+保留当时镜头、暖色石质竞技场和青绿／锈红阵营色。将仪表盘式构图改为更大的中央战斗画面、紧凑生命／意图状态、醒目的决策计时、紧凑 AP／有序队列栏及可读的图示卡牌。次要战斗历史默认折叠，通过无障碍展开控件访问。费用、不可用原因、预留 AP 与实际结果仍必须明确。目标为桌面，窄屏必须可读，但此阶段不宣称触屏游戏支持。
 
-Validate existing rules and real-input flows, plus closed/open history, AP preview, readability at 1280×800 and a larger desktop, no actor/HUD overlap, and captures of planning/counter/impact/terminal states. Capture a short active sequence for animation review. Reuse existing test infrastructure and record findings/evidence in verification; do not copy the bundled scaffold over the game.
+仅通过表现动画改善起手、攻击弧线、格挡盾牌姿势和反击。根据实际快照变化施加命中闪光、短暂后坐和伤害／格挡提示，每次结果只触发一次。`Arena.render(snapshot, realSeconds = 0)` 可以接收有上限的渲染增量推进反馈；适配器传入该增量，纯 Combat tick／规则保持不变。暂停冻结特效，重开清除特效，降低动态效果偏好抑制非必要抖动／运动。命中停顿不改变决策时钟，不增加音频／资产服务，不宣称高端或 AAA 质量。
 
-### Cinematic QTE follow-up
+验证现有规则和实际输入流程，以及历史面板关闭／展开、AP 预览、1280×800 和更大桌面的可读性、角色／HUD 无重叠，并采集选牌／反击／命中／胜负状态。采集短暂活动序列用于动画审查。复用测试设施，在验证文档记录发现与证据；不以技能自带脚手架覆盖游戏。
 
-The fixed-camera and queue-only behavior above describes the earlier milestone. The current presentation and default controls are superseded by [Cinematic QTE Design](../cinematic-qte/design.md): authored event/action shots and immediate button/key play, with queue planning retained as a comparison mode. Existing costs, damage, counter eligibility and cooldowns remain unchanged.
+### 后续演出式 QTE
+
+上文固定镜头与仅队列的行为描述早期里程碑。现有表现与默认控制已由[演出式 QTE 设计](../cinematic-qte/design.md)替代：预设事件／行动分镜与按钮／按键即时出牌，保留队列作为对照模式。原有费用、伤害、反击资格和冷却未变。

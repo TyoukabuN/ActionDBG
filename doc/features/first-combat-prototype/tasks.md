@@ -1,11 +1,11 @@
-# First Combat Prototype — Tasks
+# 首个战斗原型 — 任务
 
-Sources: [design](design.md), [plan](implementation-plan.md), [PRD](../../prd/first-combat-prototype.md).
+来源：[设计](design.md)、[计划](implementation-plan.md)、[PRD](../../prd/first-combat-prototype.md)。
 
-| Task | Outcome / write set | Dependencies | Validation | Status |
+| 任务 | 结果／修改范围 | 依赖 | 验证 | 状态 |
 | --- | --- | --- | --- | --- |
-| T1 | Pure combat engine and rules tests: `src/combat.ts`, `tests/combat.test.ts` | Core API/design ready; lead creates tooling | 12 Vitest checks and typecheck; AC-01–04,06–08 | verified |
-| T2 | Browser adapters: `src/main.ts`, `src/scene.ts`, `src/style.css`, `index.html` | Frozen T1 contract; does not edit T1 files | Production build, four real-input browser scenarios, inspected active screenshot; AC-01–02,05–07 | verified |
-| T3 | Tooling, CI, README, browser checks and final evidence | T1/T2 review | npm ci, typecheck, rules tests, production preview, AC mapping; hosted CI/deployment not yet verified | implemented |
+| T1 | 纯战斗引擎与规则测试：`src/combat.ts`、`tests/combat.test.ts` | 核心 API／设计就绪；主代理建立工具链 | 12 项 Vitest 检查及类型检查；AC-01–04、06–08 | 已验证 |
+| T2 | 浏览器适配器：`src/main.ts`、`src/scene.ts`、`src/style.css`、`index.html` | 固定的 T1 约定；不修改 T1 文件 | 生产构建、四项实际输入浏览器场景、已检查的活动截图；AC-01–02、05–07 | 已验证 |
+| T3 | 工具链、CI、README、浏览器检查及最终证据 | T1／T2 审查 | npm ci、类型检查、规则测试、生产预览、AC 映射；托管 CI／部署尚未验证 | 已实现 |
 
-Workers must read PRD/design, keep to their write sets, preserve other changes, and stop/report if the contract cannot satisfy the PRD. No commit, push, deployment or dependency edits by workers. Lead reviews actual files and checks; task status becomes verified only after review. Human fun/readability feedback is separately marked NOT RUN until supplied.
+执行代理必须阅读 PRD／设计，遵守修改范围、保留其他修改；约定无法满足 PRD 时停止并报告。执行代理不得提交、推送、部署或修改依赖。主代理审查实际文件与检查结果，审查后才能将任务标记为已验证。真人趣味性／可读性反馈在用户提供前单独标记为“未执行（NOT RUN）”。

@@ -1,53 +1,53 @@
-# Cinematic QTE — Verification
+# 演出式 QTE — 验证记录
 
-2026-10-13; Full track. Upstream: [PRD](prd.md), [Design](design.md), [Plan](implementation-plan.md), [Tasks](tasks.md). Reviewed in the existing `main` checkout under the user's continuing direct-main delivery instruction.
+2026-10-13；完整流程。上游：[PRD](prd.md)、[设计](design.md)、[计划](implementation-plan.md)、[任务](tasks.md)。依据用户持续有效的直接提交 main 指令，在现有 `main` 工作目录中审查。
 
-## Implementation and lead review
+## 实现与主代理审查
 
-Loaded adaptive project development routing/contracts/review/ActionDBG profile and role handoffs; sol-luna-dev and its worker contract; Three.js director, gameplay systems/game-feel, UI designer/UI patterns, QA/visual-test-harness and evidence-manifest guidance. Two bounded implementation workers used the supported `gpt-6-luna` fallback because the skill's old binding is unavailable. Lead owns the UI adapter, browser scenarios, integration, review and delivery. A repair worker was interrupted by its usage limit; the lead completed and tested the repairs directly.
+已阅读自适应项目开发的流程路由／文档约定／审查／ActionDBG 配置与角色交接；sol-luna-dev 及其执行代理约定；Three.js 导演、玩法系统／游戏手感、界面设计／界面模式、QA／视觉测试设施和证据清单指南。技能旧模型绑定不可用，两名限定范围的执行代理使用受支持的 `gpt-6-luna` 备选。主代理负责界面适配、浏览器场景、集成、审查和交付。一名修复代理因额度限制中断，主代理直接完成修复与测试。
 
-Inspected actual Combat, camera, scene and input diffs. QTE resumes its saved decision budget, uses existing costs/cooldowns, rejects acting/repeated/paused input, and cancels pending work on lethal damage. Queue rules remain available for comparison. Focused native button activation is preserved; the hidden start button is blurred after activation. A new card interrupts a previous impact-camera hold. Successful Counter retains parry framing through resolve and suppresses a cancelled enemy swing; resetting unused Guard after Counter is not displayed as a block. Restart/mode changes clear presentation state. No dependencies, model assets, CI changes or new draw loops were added.
+已检查 Combat、镜头、场景和输入的实际差异。QTE 恢复保存的决策时间，使用既有费用／冷却，拒绝行动中／重复／暂停输入，致死伤害取消待执行工作。队列规则保留作对照。保留已聚焦按钮的原生键盘激活；隐藏的开始按钮在激活后取消焦点。新出牌打断此前命中镜头停留。成功反击在结算期间保持反击构图，抑制被取消的敌方挥击；反击后清除未使用格挡不显示为格挡成功。重开／模式切换清空表现状态。未增加依赖、模型资产、CI 变更或绘制循环。
 
-## Checks
+## 检查结果
 
-- PASS: `npm test`: 24 tests (17 Combat, 7 CameraDirector), including original queue behavior plus direct play, AP, resumed budget, duplicate rejection, counter, expiry, lethal cancellation, pause, reset, shot differences and reduced motion.
-- PASS: `npm run build`: strict TypeScript and Vite `/ActionDBG/` production output. JavaScript 562.02 kB minified / 145.91 kB gzip; existing 500 kB advisory remains.
-- PASS: focused production browser run: 3 QTE scenarios, real mouse/keyboard inputs and Playwright clock, 1.9 minutes.
-- PASS: full production browser regression: all 8 scenarios, 4.2 minutes. After a final presentation-only change widened parry framing and lowered damage labels, the affected direct-play/counter browser scenario was rerun and passed (23.8 seconds); all 24 unit tests and production build were also rerun successfully.
-- PASS: real-input capture run `cinematic-qte-20261013-final`: 9 screenshots across 1280×800 and 1600×1000, plus an unpaused native CDP screencast of 83 frames. Browser/page errors: none; horizontal overflow: none. Inspected establishing/wind-up, decision, quick/heavy, guard, counter and parry views plus motion contact/recovery. No gameplay-state forcing or upstream scorecard was used. A final CSS-only large-screen adjustment separates HUD from the shot/round topline; the affected 1600×1000 layout and production build were rechecked separately.
+- 通过（PASS）：`npm test`，24 项测试（17 项 Combat、7 项 CameraDirector），覆盖原有队列、直接出牌、AP、剩余时间恢复、重复拒绝、反击、超时、致死取消、暂停、重置、分镜差异与降低动态效果。
+- 通过（PASS）：`npm run build`，严格 TypeScript 与 Vite `/ActionDBG/` 生产输出。JavaScript 压缩后 562.02 kB／gzip 145.91 kB；既有 500 kB 提示保留。
+- 通过（PASS）：聚焦生产浏览器测试，3 个 QTE 场景，实际鼠标／键盘输入与 Playwright 时钟，耗时 1.9 分钟。
+- 通过（PASS）：完整生产浏览器回归，全部 8 个场景，耗时 4.2 分钟。最后一次仅表现修改扩大反击构图、降低伤害标签后，重跑受影响的直接出牌／反击场景通过（23.8 秒）；24 项单元测试和生产构建也再次通过。
+- 通过（PASS）：实际输入采集 `cinematic-qte-20261013-final`，1280×800、1600×1000 共 9 张截图，以及未暂停的原生 CDP 录屏 83 帧。无浏览器／页面错误，无横向溢出。检查开场／前摇、决策、快斩／重斩、格挡、反击窗口／反击动作及命中／恢复。未强制修改玩法状态，也未使用上游评分表。最后一次仅 CSS 的大屏调整分开 HUD 与分镜／轮次顶栏，受影响的 1600×1000 布局及生产构建另行复查。
 
-The initial browser attempt was interrupted after discovering that a typecheck failure left the previous production build in place. The nullable mount reference was corrected, production rebuilt, and the focused run passed. No stale run is counted as evidence. Browser clock cases exercise RAF-driven simulation and public input; no production state-control hooks were added.
+初次浏览器测试发现类型检查失败导致生产输出仍为旧版本后中断。修复可空挂载引用、重新构建后，聚焦测试通过。旧构建测试不计为证据。浏览器时钟场景通过 RAF 模拟和公开输入执行，没有增加生产状态控制钩子。
 
-Human cinematic pacing/feel and hosted GitHub Actions/Pages deployment are not established by local checks. This is a procedural animation prototype with limited-time technique choices, without perfect-timing grades, random button sequences or final character art.
+本地检查不证明真人感受到的演出节奏／手感，也不证明托管 GitHub Actions／Pages 部署成功。这是限时选招的程序化动画原型，不含完美时机评级、随机按钮序列或正式角色美术。
 
-## Right-shoulder camera revision (2026-10-13)
+## 右肩镜头修订（2026-10-13）
 
-Following player feedback that the first dynamic-camera pass still read as a distant stage, the stable overview, wind-up, decision and Counter-window poses were moved immediately behind the player's right shoulder. Action poses now use stronger height and focal-length differences while preserving screen direction. Counter also presents the enemy's Light/Heavy Attack card in the upper-right with name, damage, speed-line treatment and a short fade/slide/rotation entrance. Pause and reduced-motion behavior remain explicit. The checks and final visual evidence for this revision are appended after execution; earlier camera captures document the rejected composition rather than acceptance evidence for this revision.
+玩家反馈第一轮动态镜头仍像远处舞台后，将稳定开场、前摇、决策和反击窗口机位移到玩家右肩后方。行动机位扩大高度与焦距差异，保留画面方向。反击时右上角展示敌方轻／重攻击卡牌，包含名称、伤害、速度线及短暂淡入／滑入／旋转。暂停和降低动态效果行为仍明确。检查与最终视觉证据在执行后补充；早期采集只记录被否定构图，不作为本次接受证据。
 
-The revision passed all 24 Combat/CameraDirector tests and a production build. Focused production-browser checks passed direct QTE/Counter and reduced-motion behavior; the first asserts the Light Attack card and 2 damage, and the heavy-flow scenario asserts Heavy Attack and 4 damage. A fresh real-input capture produced nine screenshots at 1280×800 and 1600×1000 in `/tmp/actiondbg-shoulder-camera-20261013/`: right-shoulder wind-up/decision, tilted Quick panel, entering/settled Counter card, parry panel, large decision/Counter, and reduced-motion overview. The capture manifest reports no page/console errors or horizontal overflow, and every Counter card remained inside the scene. Visual inspection confirms the player shoulder/cape frames the foreground, the opponent stays visible beyond it, the upper-right enemy card clears the HP HUD, and action panels use restrained opposing Dutch angles. These captures supersede the previous pass for camera-composition review. Human judgment of the desired manga feel still belongs to the next player review.
+本次修订通过全部 24 项 Combat／CameraDirector 测试和生产构建。聚焦生产浏览器检查通过直接 QTE／反击及降低动态效果；前者断言轻攻击与 2 点伤害，重击流程断言重攻击与 4 点伤害。实际输入重新采集，在 `/tmp/actiondbg-shoulder-camera-20261013/` 保存 1280×800、1600×1000 共 9 张截图：右肩前摇／决策、倾斜快斩分镜、反击卡牌入场／落定、反击动作、大屏决策／反击、降低动态效果概览。证据清单无页面／控制台错误或横向溢出，所有敌方反击窗口卡牌都位于场景内。视觉检查确认玩家肩膀／披风构成前景，对手仍可见，右上卡牌避开生命 HUD，行动分镜使用克制的相反倾角。这些采集替代上一轮的构图审查证据。是否达到期望漫画感仍由下一次玩家评价决定。
 
-## Counter bars and impact VFX revision (2026-10-13)
+## 反击黑边与命中特效修订（2026-10-13）
 
-Counter now interrupts any remaining card-impact hold, settles into a tighter right-shoulder shot, and drives two black planes from opposite horizontal sides into top and bottom letterbox positions. They leave the middle open. Rendering is explicitly composed as scene base → black bars → actors → effects; the character redraw places silhouettes in front of the bars and the final pass contains the contact ring, damage labels, 18 pooled blood points and 14 pooled Guard spark streaks. Reduced motion snaps the bar state and caps particle displacement. Pause freezes all feedback timers; restart clears both pools and the bars.
+反击打断残留的卡牌命中镜头停留，落定为更紧的右肩机位，两块黑色平面从相反水平方向进入上下遮幅位置，中部开放。绘制明确为“场景底图 → 黑边 → 角色 → 特效”；重画角色使轮廓处于黑边前，最后通道包含命中环、伤害标签、18 个复用血液粒子和 14 条复用格挡火花。降低动态效果模式直接切换黑边状态，限制粒子位移；暂停冻结全部反馈计时；重开清空粒子池与黑边。
 
-The production build and all 25 unit tests pass. Focused production-browser coverage passes the queue Guard and direct QTE/Counter paths using the system Chromium: it asserts 14 live spark streaks, 18 live blood particles, full Counter-bar convergence and the published render order. A real-input capture at `/tmp/actiondbg-vfx-20261013/` contains blood impact, Counter bars, parry and expanded Guard sparks at 1280×800; its manifest reports no browser/page errors or horizontal overflow. Visual inspection confirms the bars replace only the arena background layer while fighter silhouettes and effects remain visible above them. Active-play diagnostics in that capture peak at 261 draw calls, 28,250 triangles, 95 geometries and 3 textures, with 51 materials; there are four explicit composition passes, zero post-processing passes, one 1024² shadow-casting light and a DPR cap of 2. The draw-call peak is within the technical-art desktop starting budget of 300. These artifacts are local evidence and are not committed.
+生产构建与全部 25 项单元测试通过。系统 Chromium 的聚焦生产浏览器检查通过队列格挡及直接 QTE／反击路径：断言 14 条活动火花、18 个活动血液粒子、反击黑边完整落位及公布的绘制顺序。实际输入采集 `/tmp/actiondbg-vfx-20261013/` 包含 1280×800 的血液命中、反击黑边、反击动作和展开的格挡火花；清单无浏览器／页面错误或横向溢出。视觉确认黑边只替代竞技场背景层，角色轮廓与特效保持在前。活动场景诊断峰值：261 次绘制调用、28,250 个三角形、95 个几何体、3 张纹理、51 个材质；4 个显式合成通道、0 个后处理通道、1 个 1024² 阴影光源，DPR 上限为 2。绘制调用峰值低于技术美术规范的桌面起始预算 300。这些是本地证据，未提交。
 
-## Acceptance evidence
+## 验收证据
 
-| Criterion | Result | Evidence and limits |
+| 标准 | 结果 | 证据与限制 |
 | --- | --- | --- |
-| AC-01 direct input/action shots | PASS | QTE browser mouse and native focused-button Enter; number-key actions; changed shot id and actual camera coordinates; inspected captures |
-| AC-02 sequence, time, AP, rejection | PASS | Combat tests plus browser saved timer/AP/repeat checks; action playback does not reset the budget |
-| AC-03 counter, expiry, endings, retry | PASS | QTE counter/expiry/five restarts in browser; lethal QTE unit test; queue browser win/loss/immediate retry |
-| AC-04 shot visibility/readability | PASS for prototype presentation | Nine actual captures, native motion sequence and browser error checks; final parry frame keeps floating damage below HP HUD; large-screen topline separation checked. Human cinematic quality remains untested |
-| AC-05 lifecycle/comparison | PASS | Pause freezes camera/decision timer, reduced-motion stable overview, reset tests and all five original browser scenarios explicitly choose queue mode |
+| AC-01 直接输入／行动分镜 | 通过 | QTE 鼠标及聚焦按钮原生 Enter；数字键行动；分镜编号和实际镜头坐标变化；已检查截图 |
+| AC-02 序列、时间、AP、输入拒绝 | 通过 | Combat 测试与浏览器剩余计时／AP／重复检查；动作播放不重置时间预算 |
+| AC-03 反击、超时、胜负、重试 | 通过 | 浏览器 QTE 反击／超时／五次重开；致死 QTE 单元测试；队列浏览器胜负／立即重试 |
+| AC-04 分镜可见／可读 | 原型表现通过 | 9 张实际截图、原生动作序列和浏览器错误检查；最终反击帧伤害字在生命 HUD 下方；检查大屏顶栏分离。真人演出质量未测试 |
+| AC-05 生命周期／对照 | 通过 | 暂停冻结镜头／决策计时，降低动态效果使用稳定概览，重置测试，原有 5 项浏览器场景显式选择队列模式 |
 
-Local artifacts are `/tmp/actiondbg-cinematic-20261013-final/manifest.json`, associated screenshots, `motion-000.jpg` through `motion-082.jpg`, `motion-sheet.jpg`, and `large-layout-check.json` / `large-decision-checked.png`. They are temporary, uncommitted evidence. Earlier captures with the HUD overlap are not the accepted large-screen view. Screenshot baselines remain deferred because there is no human-approved composition baseline; behavioral tests plus real-input motion are used for this experiment. No hardware FPS guarantee is claimed; the later VFX revision records renderer counts for its multi-pass composition.
+本地文件包括 `/tmp/actiondbg-cinematic-20261013-final/manifest.json`、相关截图、`motion-000.jpg` 至 `motion-082.jpg`、`motion-sheet.jpg`、`large-layout-check.json`／`large-decision-checked.png`。这些是临时且未提交的证据。早期 HUD 重叠截图不是获接受的大屏构图。没有真人批准的构图基线，因此暂不建立截图基线，使用行为测试和实际动作采集。未保证硬件 FPS；后续特效修订记录了多通道合成的渲染计数。
 
-## Chinese UI and portrait touch play (2026-10-13)
+## 中文界面与竖屏触控（2026-10-13）
 
-Translated visible HUD/menu/card/shot/outcome text, tooltips, accessibility labels, canvas impact labels and displayed combat history to Simplified Chinese. `src/chinese.ts` maps presentation text without changing the simulation event format or gameplay rules. The document language and page metadata are Chinese; the ActionDBG product name and keyboard key R remain unchanged.
+已将可见 HUD／菜单／卡牌／分镜／结果文案、提示、无障碍标签、画布命中标签和战斗历史译为简体中文。`src/chinese.ts` 映射表现文本，不改变模拟事件格式或玩法规则。页面语言与元数据为中文；产品名 ActionDBG 和键盘 R 保留。
 
-Portrait layout uses two-column cards, safe-area padding, 44px primary touch targets, compact enemy-card/HUD placement and a view-axis camera pullback for narrow aspect ratios. Real touch emulation at 360×844 and 390×844 exercised Quick, continue, Counter and restart without page errors or horizontal overflow. The primary submit button remained within the 844px viewport. Screenshots `/tmp/actiondbg-zh-360.png` and `/tmp/actiondbg-zh-390.png` were inspected for character visibility and text fit. Shorter screens may scroll naturally. This is browser touch emulation rather than verification on physical phones.
+竖屏采用两列卡牌、安全区域留白、44px 主要触控目标、紧凑敌方卡牌／HUD 位置，以及窄宽高比下沿视线后退的镜头。360×844 和 390×844 的触屏模拟完成快斩、继续、反击和重开，无页面错误或横向溢出。主要提交按钮位于 844px 视口内。检查 `/tmp/actiondbg-zh-360.png`、`/tmp/actiondbg-zh-390.png` 的角色可见性与文本空间。更短屏幕允许自然滚动。这是浏览器触屏模拟，非实体手机验证。
 
-All 25 existing unit tests and the production build pass. The desktop direct-QTE browser regression and a new Chinese portrait touch-flow scenario validate the translated labels and shared input adapter. Existing browser expectations were updated for the Chinese presentation.
+25 项现有单元测试与生产构建通过。桌面直接 QTE 浏览器回归及新增中文竖屏触控场景验证译文与共用输入适配器；既有浏览器预期同步为中文。

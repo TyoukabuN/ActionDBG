@@ -1,89 +1,89 @@
-# ActionDBG: Project Purpose
+# ActionDBG：项目目的
 
-## Vision
+## 愿景
 
-ActionDBG explores a game that combines deck-building decisions with the immediacy of visible 3D combat. The player should feel that choosing a card is choosing an attack, technique, spell, or response within an unfolding fight.
+ActionDBG 探索将牌库构筑决策与可见 3D 战斗的即时感结合起来的游戏。玩家选择卡牌时，应感受到自己正在展开的战斗中选择攻击、招式、法术或应对。
 
-The project also establishes an AI-assisted prototyping workflow: describe a mechanic in natural language, implement a small playable version, test it in a browser, and refine it from player feedback. The goal is to discover an enjoyable game through short, complete iterations.
+项目同时建立 AI 辅助原型开发流程：用自然语言描述机制，实现小型可玩版本，在浏览器中测试，再根据玩家反馈改进。目标是通过短小但完整的迭代找到有趣的游戏。
 
-This is a game prototyping project. Prefer playable results, clear rules, simple architecture, and reliable builds. A production game engine, extensive content library, and polished final game are outside the initial scope.
+这是游戏原型项目。优先追求可玩结果、清晰规则、简单架构和可靠构建。生产级游戏引擎、庞大内容库和精修成品不在初始范围内。
 
-## Intended player experience
+## 期望的玩家体验
 
-The original [game vision](design/protoTypeImages.md) describes these directions:
+原始[游戏构想](design/protoTypeImages.md)描述了以下方向：
 
-- **Battle is a directed performance.** Camera shots follow wind-ups, techniques and their consequences. Limited-time screen buttons and keyboard inputs make card play feel like a QTE within the unfolding action.
-- **Cards express combat actions.** Attacks, techniques, and spells become cards, connecting tactical choices to actions visible in the scene.
-- **Slow motion creates a decision window.** During card-play phases, combat slows so the player can observe the opponent's action and choose a response under time pressure.
-- **Character attributes shape decisions.** Reaction speed influences the decision-window duration; attack speed influences the available action resource budget. Exact formulas remain open.
-- **Context opens new phases.** A counter-tagged card may become usable before an incoming hit; a bloodthirst-tagged card may become usable following damage. Cards may lead to additional actions or phases when designed to do so.
-- **Progression emphasizes encounters.** Relatively fixed routes trigger events and battles, with possible branches and limited exploration. The emphasis is on combat decisions and their payoff.
-- **Items have a separate role.** A backpack card pool separates items from combat cards.
+- **战斗是有分镜的演出。** 镜头随前摇、招式和结果切换。限时屏幕按钮和键盘输入让出牌像正在展开的行动中的 QTE。
+- **卡牌表达战斗动作。** 攻击、招式和法术成为卡牌，将战术选择连接到场景中可见的动作。
+- **慢动作提供决策窗口。** 出牌阶段战斗减速，玩家能观察对手动作，在时间压力下选择应对。
+- **角色属性影响决策。** 反应速度影响窗口时长，攻击速度影响可用行动资源。具体公式尚未确定。
+- **情境开启新阶段。** 带反击标签的牌可在即将受击前使用，嗜血牌可在造成／受到伤害后使用。设计允许时，卡牌可引发额外行动或阶段。
+- **推进重点是遭遇战。** 相对固定路线触发事件与战斗，允许分支和有限探索。重点是战斗决策及其结果。
+- **道具有独立角色。** 背包牌池将道具与战斗卡牌分开。
 
-These are design intentions, not claims of implemented mechanics. The design should test whether time pressure and readable opponent actions make card choices more engaging, without making the rules difficult to understand.
+这些是设计意图，不是已实现机制的声明。设计应验证时间压力和清晰的敌方动作是否使选牌更有趣，同时保持规则易懂。
 
-## Questions the prototypes should answer
+## 原型需要回答的问题
 
-1. Can the player understand an incoming action and make a meaningful card choice during slow motion?
-2. Does the combination of tactical choice and visible action feel responsive and rewarding?
-3. Do reaction speed and attack speed create useful differences in play rather than confusing timing or resource rules?
-4. Do contextual counter and bloodthirst phases create interesting decisions without excessive interruption or uncontrolled phase chains?
-5. Which hand model best serves this experience: fixed cards with cooldowns, retained cards, or draw/discard-based deck building?
+1. 玩家能否理解来袭行动，并在慢动作期间做出有意义的选牌？
+2. 战术选择与可见动作结合后，是否有及时、令人满足的反馈？
+3. 反应速度和攻击速度能否形成有用的玩法差异，而非难懂的时间／资源规则？
+4. 情境反击与嗜血阶段能否带来有趣决策，避免过度打断或失控阶段链？
+5. 哪种手牌模型最适合：固定卡牌加冷却、保留卡牌，还是抽牌／弃牌式构筑？
 
-Hand rules, discard/draw behavior, balance values, time scaling, and phase chaining are unresolved design choices. Record decisions after a scoped experiment; do not treat one of the alternatives as settled merely because it appears in an early prototype.
+手牌规则、弃牌／抽牌、平衡数值、时间缩放和阶段链都是待定设计。通过有范围的实验后记录决定；不能因为早期原型用了某方案就视为最终结论。
 
-## Development purpose and workflow
+## 开发目的与流程
 
-The developer should be able to propose an idea and evaluate a playable result without maintaining a local development environment. Codex Cloud and the Codex desktop client support implementation and documentation work; GitHub stores the project and review history.
+开发者无需维护本地开发环境，就能提出想法并评价可玩结果。Codex Cloud 和 Codex 桌面客户端支持实现与文档工作；GitHub 保存项目及审查历史。
 
-The intended delivery loop is:
+期望交付循环：
 
-1. Describe the desired mechanic and acceptance criteria.
-2. Inspect existing design and code, then implement a focused playable increment.
-3. Validate relevant gameplay rules, type checking, and the web build.
-4. Review changes through a feature branch and pull request.
-5. After merge to `main`, use GitHub Actions to validate, build, and deploy to GitHub Pages.
-6. Play the browser build, identify what works and what is confusing, and iterate.
+1. 描述所需机制和验收标准。
+2. 检查现有设计与代码，实现聚焦的可玩增量。
+3. 验证相关玩法规则、类型检查和网页构建。
+4. 通过功能分支与拉取请求审查修改。
+5. 合入 `main` 后，使用 GitHub Actions 验证、构建并部署到 GitHub Pages。
+6. 浏览器试玩，找出有效和令人困惑之处，再迭代。
 
-Three.js provides 3D rendering, TypeScript with strict checking provides application code, Vite provides development/build tooling, and HTML/CSS provides simple UI. Keep gameplay rules independently testable and start with primitive geometry and procedural visuals. Runtime assets should remain self-contained and work under the GitHub Pages repository base path.
+Three.js 负责 3D 渲染，严格 TypeScript 负责应用代码，Vite 提供开发／构建工具，HTML／CSS 提供简单界面。玩法规则保持独立可测试，起步采用基础几何与程序化视觉。运行时资产应自包含，并兼容 GitHub Pages 仓库基础路径。
 
-This describes the target workflow. It does not establish that CI, deployment, or a playable build already exists.
+这里描述的是目标流程，不代表 CI、部署或可玩构建已经存在。
 
-## Initial milestones
+## 初始里程碑
 
-### 1. Verify the development and delivery pipeline
+### 1. 验证开发与交付流水线
 
-Create a minimal 3D scene with ground and lighting, a primitive player, WASD movement, a third-person follow camera, basic mouse interaction, a simple HUD, and responsive canvas resizing. Verify the development loop, validation, and browser deployment.
+创建最小 3D 场景：地面和光照、基础几何玩家、WASD 移动、第三人称跟随镜头、基础鼠标交互、简单 HUD、响应式画布。验证开发循环、检查和浏览器部署。
 
-This is a technical validation milestone. Movement and camera behavior are not a commitment to the final combat controls or level structure.
+这是技术验证里程碑；移动和镜头行为不代表最终战斗操作或关卡结构已确定。
 
-### 2. Test one representative combat encounter
+### 2. 验证一场代表性战斗
 
-Build a small encounter that demonstrates card-driven actions, a readable opponent action, a bounded decision window, visible outcomes, and fast retry. Limit content to what is needed to evaluate the core experience. Define the clock and phase rules explicitly and test them separately from rendering.
+构建小型遭遇，展示卡牌驱动动作、可读的敌方行动、有限决策窗口、可见结果和快速重试。内容量只需足以评价核心体验。明确时钟与阶段规则，并独立于渲染测试。
 
-The exact encounter, card set, and hand model must be designed before implementation; they are not specified by this purpose document.
+具体遭遇、卡牌集合和手牌模型必须在实现前设计，本目的文档不规定它们。
 
-### 3. Expand only after playtesting
+### 3. 试玩后再扩展
 
-Use feedback from the representative encounter to decide which card rules, contextual phases, attributes, and route events deserve expansion. Prefer improvements to clarity and decision quality over increasing content volume.
+根据代表性遭遇的反馈，决定哪些卡牌规则、情境阶段、属性与路线事件值得扩展。优先改善清晰度与决策质量，再增加内容量。
 
-## Scope boundaries
+## 范围边界
 
-- No Unity or Unreal Engine; the initial target is a browser game.
-- No backend server, multiplayer networking, or external runtime-service dependency.
-- No complex ECS, editor, or custom engine unless later explicitly requested.
-- No external hosting platform; GitHub Pages is the intended web host.
-- No initial NW.js Windows packaging or per-PR preview infrastructure. Those may become separate future tasks.
-- External generated assets and premium visual polish are optional, not prerequisites for proving the core loop.
+- 不使用 Unity 或 Unreal Engine；初始目标是浏览器游戏。
+- 不引入后端服务器、多人联网或外部运行时服务依赖。
+- 未经后续明确要求，不引入复杂 ECS、编辑器或自研引擎。
+- 不引入其他托管平台；目标网页托管为 GitHub Pages。
+- 初期不做 NW.js Windows 打包或每个 PR 的预览设施，未来可作为独立任务。
+- 外部生成资产与高质量视觉精修可选，不是验证核心循环的前提。
 
-## Success criteria
+## 成功标准
 
-The project succeeds initially when a focused browser prototype is easy to access, its controls and decisions are understandable, the player can complete or fail an encounter and retry, and feedback can guide the next iteration. Builds and important gameplay rules should be verifiable so each completed change leaves a usable prototype.
+初期成功意味着聚焦的浏览器原型易于访问，操作与决策易懂，玩家能完成或失败一场遭遇并重试，反馈能指导下一次迭代。构建与重要玩法规则应可验证，使每次完成修改后都留下可用原型。
 
-More cards, higher visual fidelity, or a larger architecture are not sufficient evidence of progress unless they improve the experience being tested.
+更多卡牌、更高画质或更大架构本身不是进展证据，除非它们改善正在验证的体验。
 
-## Status at this document's creation
+## 本文创建时的状态
 
-As of 2026-10-12, the repository contains the original design notes, project agent instructions, and development/research skills. Game source, dependency manifests, automated game tests, CI/CD workflows, and a playable deployment have not yet been created. This is a historical snapshot; inspect the repository for current status.
+截至 2026-10-12，仓库包含原始设计、项目代理规范、开发／研究技能；尚无游戏源码、依赖清单、自动化游戏测试、CI/CD 工作流或可玩部署。这是历史快照，当前状态请检查仓库。
 
-Use [AGENTS.md](../AGENTS.md) for development conventions and skill routing. Use this document for the project's purpose, scope, and initial direction; it should not become an execution log. Keep detailed gameplay proposals in `doc/design/` and concrete requirements and acceptance criteria in `doc/prd/` as they are developed.
+开发约定和技能路由见 [AGENTS.md](../AGENTS.md)。本文记录项目目的、范围和初始方向，不应成为执行日志。详细玩法方案放在 `doc/design/`，具体需求和验收标准放在 `doc/prd/`。

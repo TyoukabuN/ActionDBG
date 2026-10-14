@@ -1,7 +1,7 @@
-# Cinematic QTE — Implementation Plan
+# 演出式 QTE — 实施计划
 
-Upstream: [design](design.md). Full track, ready, 2026-10-13.
+上游：[设计](design.md)。完整流程，已就绪，2026-10-13。
 
-1. Implement QTE mode and direct-play/resumed-budget rules in Combat; preserve queue tests and add rejected/terminal/chain tests (AC-01–03). In parallel, implement presentation camera poses/transitions and isolated lifecycle tests in scene/camera files (AC-04–05). Contracts are fixed in Design; no shared file ownership.
-2. Integrate browser buttons, keyboard, mode selection and contextual labels against the snapshot contract. Update legacy browser tests to explicitly choose queue mode; add QTE real-input scenarios (AC-01–05).
-3. Lead review: inspect actual diffs, run strict types, rules/camera tests, production build and browser regression. Capture multiple action shots and an unpaused sequence at desktop viewports; inspect threat visibility and errors. Repair focused defects, record limits, then commit/push main under the user's existing direct-main authorization. Local build does not establish hosted deployment.
+1. 在 Combat 中实现 QTE 模式、直接出牌及恢复剩余决策时间的规则；保留队列测试，补充拒绝输入、终止状态和阶段链测试（AC-01–03）。同时在场景／镜头文件中实现表现层机位、转换及独立生命周期测试（AC-04–05）。设计中约定固定，不交叉修改同一文件。
+2. 根据快照约定集成浏览器按钮、键盘、模式选择和情境提示。旧浏览器测试显式选择队列模式，新增使用实际输入的 QTE 场景（AC-01–05）。
+3. 主代理审查实际差异，执行严格类型检查、规则／镜头测试、生产构建和浏览器回归。在桌面视口采集多个行动分镜及未暂停的动作序列，检查威胁可见性和错误。修复具体缺陷，记录限制，再根据用户已有的直接提交 main 授权提交并推送。本地构建成功不代表托管部署成功。

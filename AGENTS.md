@@ -11,7 +11,7 @@ Follow the current task scope. These guidelines describe the intended workflow; 
 ## Communication
 
 - Communicate with the user primarily in Chinese.
-- Write code, identifiers, and new technical documentation in English. Preserve existing Chinese design documents unless their translation is requested.
+- Write code and identifiers in English. Write project documentation under `doc/` in Chinese, including technical designs, plans, tasks, verification records, and research. Preserve code identifiers, commands, paths, URLs, and requirement IDs verbatim.
 - Explain important design choices briefly and state reasonable assumptions.
 - Ask only when a consequential product or architecture choice cannot reasonably be inferred. Continue independent work while awaiting an answer.
 - Report verified outcomes and distinguish failures, skipped checks, and checks not run.
