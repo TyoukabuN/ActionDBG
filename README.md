@@ -1,17 +1,17 @@
 # ActionDBG
 
-A browser combat experiment: watch a cinematic duel, press a technique during slow motion, and decide whether to spend now or save action points for a counter.
+浏览器回合制卡牌战斗原型：在自己的回合出牌，观看 3D 招式演出；敌人打出伤害牌时，符合条件就进入限时反击窗口。
 
-## Run
+## 运行
 
-Requires Node.js 22+ and npm. From the repository root:
+需要 Node.js 22+ 和 npm。在仓库根目录执行：
 
 ```sh
 npm ci
 npm run dev
 ```
 
-The Vite application uses `/ActionDBG/`. For a production build and local preview:
+Vite 基础路径为 `/ActionDBG/`。生产构建及本地预览：
 
 ```sh
 npm run typecheck
@@ -20,26 +20,30 @@ npm run build
 npm run preview
 ```
 
-## Play
+## 试玩
 
-The default **Cinematic QTE** mode plays a technique immediately when you click its button or press **1–4**. Different cards can follow within the same round; action playback preserves the remaining decision time. **Enter** continues to the incoming attack/counter window, **Space** passes, and **R** restarts. Press **4** in the counter window to parry immediately. Camera shots follow wind-ups, attacks, guard, parry, impact and the result. Reduced-motion preference keeps the overview stable. Leaving the page or changing tabs pauses gameplay, decision time and camera transitions.
+玩家先手。默认“演出式出牌”模式点击招式或按 **1–4** 立即出牌；玩家回合有 **4 秒**选牌时间，动作播放不消耗剩余时间，可连续使用不同普通牌。**Enter／结束回合**结束玩家回合；**Space／跳过**放弃当前选择；**R／重新开始**重开。玩家回合结束时，只有玩家 AP 补满。
 
-Before starting or after a result, the header mode button switches to **Queue planning** for comparison. In that mode, select again to remove a queued card; order determines execution order and **Enter** commits the queue. Decision windows expire automatically in both modes. Native focused buttons also support Enter/Space activation.
+随后敌人回合打一张牌，立即在右上展示并扣除敌方 AP；默认轻攻击与重攻击交替。伤害结算前，若玩家拥有可使用的反击牌且 AP 足够，进入 **2 秒反击窗口**，按 **4**或点击反击。此时镜头拉近、黑边斜向进入。不能反击则直接结算，敌人回合没有普通 Response 选牌阶段。反击造成 2 点伤害并取消来袭攻击；放弃／超时则正常受击。敌人回合结束只恢复敌方 AP，玩家反击消耗会影响下次玩家回合。
 
-You have 10 HP; the swordsman has 12. Each round refreshes 3 AP. Light/heavy attacks alternate for 2/4 damage. Quick Strike costs 1 for 1 damage; Heavy Strike costs 2 for 3; Guard costs 1 and reduces the upcoming hit by 2; Counter costs 2 and cancels the enemy attack while dealing 2. Heavy Strike and Counter cannot be used in the round immediately following use. Remaining AP carries into that round's eligible counter window. No free movement, random draw, touch controls, sound, progression or external assets are included.
+双方最大 AP 为 3，玩家生命为 10，敌人为 12。快斩花 1 AP 造成 1 点伤害，重斩花 2 AP 造成 3 点伤害，格挡花 1 AP 减少下次受击伤害 2 点，反击花 2 AP。格挡跨回合保留到下一次实际受击，被取消的攻击不消耗格挡；重复施加覆盖，不叠加。每张牌在同一玩家回合计数周期只能使用一次，重斩和反击跳过下个玩家回合，之后恢复。
 
-## Architecture
+开始前或胜负后可切换“序列出牌”作为输入对照：点击选牌，再点一次移除，顺序决定执行次序，Enter 提交序列；序列播放结束后结束玩家回合。两种输入模式共用新的双方回合规则。原生聚焦按钮也支持 Enter／Space。
 
-- `src/combat.ts`: pure deterministic combat state and two clocks; no browser/render dependency.
-- `src/camera.ts`: snapshot-driven shot selection and camera transition lifecycle.
-- `src/scene.ts`: Three.js primitive arena, fighters, camera integration and animation.
-- `src/main.ts`: input, HTML HUD, focus lifecycle and one fixed-step animation loop.
-- `tests/combat.test.ts`: gameplay invariants and strategies.
-- `tests/browser/`: real-input tests against the production preview.
+手机支持中文竖屏、两列卡牌和触屏按钮；短屏允许自然滚动。镜头跟随前摇、招式、格挡、反击、命中与胜负；降低动态效果偏好保持稳定镜头。离开页面或切换标签页冻结玩法、倒计时和镜头，返回后继续。当前没有自由移动、随机抽牌、敌方反击、音频、成长或外部模型资产。
 
-See the [cinematic QTE iteration](doc/features/cinematic-qte/prd.md), [PRD](doc/prd/first-combat-prototype.md), [technical design](doc/features/first-combat-prototype/design.md), and [verification](doc/features/first-combat-prototype/verification.md). The prototype does not settle the final hand model or balance formulas. Human playtesting should evaluate action readability, time pressure, and whether counter windows interrupt too often.
+## 架构
 
-## Browser checks
+- `src/combat.ts`：纯确定性战斗规则、双方回合与 AP、两个时钟，不依赖浏览器或渲染。
+- `src/camera.ts`：快照驱动分镜与镜头转换生命周期。
+- `src/scene.ts`：Three.js 基础几何竞技场、角色、镜头和动画特效。
+- `src/main.ts`／`src/chinese.ts`：输入、中文 HTML HUD、焦点生命周期和单一固定步长循环。
+- `tests/combat.test.ts`：玩法不变量、恢复归属、反击与策略。
+- `tests/browser/`：生产预览上的实际输入测试。
+
+当前需求见[回合制修订](doc/features/cinematic-qte/prd.md)，机制见[技术设计](doc/features/cinematic-qte/design.md)，证据见[验证记录](doc/features/cinematic-qte/verification.md)。早期[原型 PRD](doc/prd/first-combat-prototype.md)中的 Response 流程是历史记录。本原型不确定最终手牌模型或属性公式，需通过试玩评价回合节奏、资源取舍和反击打断。
+
+## 浏览器检查
 
 ```sh
 npx playwright install chromium
@@ -47,10 +51,10 @@ npm run build
 npm run test:browser
 ```
 
-If Chromium is already installed, set `CHROMIUM_PATH` to its executable. Temporary browser results and builds are ignored in Git. Software-rendered headless results do not establish performance on player hardware.
+已安装 Chromium 时可将 `CHROMIUM_PATH` 设为其可执行路径。临时测试结果与构建输出被 Git 忽略。无界面软件渲染结果不证明玩家硬件性能；触屏模拟也不等于实体手机验证。
 
-## GitHub delivery
+## GitHub 交付
 
-Feature pushes and pull requests run CI validation. Main pushes build and deploy through GitHub Pages. In repository Settings → Pages, select **GitHub Actions** as the source. Merge a reviewed feature branch into `main` to trigger deployment. A pushed branch/local build is not proof of successful CI or deployment; inspect the actual workflow outcome before claiming the game is published.
+功能分支推送／拉取请求运行 CI。main 推送构建并部署 GitHub Pages；仓库 Settings → Pages 应选择 **GitHub Actions**。按已授权流程合入或提交 main 触发部署；推送或本地构建不证明托管 CI／部署成功，必须检查实际工作流结果。
 
-The Vite base is `/ActionDBG/` for the repository site. Adjust it if moving to a custom domain or different repository. Runtime code does not use research API credentials.
+标准仓库站点基础路径为 `/ActionDBG/`，迁移域名或仓库时需相应调整。运行时代码不使用社区研究 API 凭据。

@@ -495,9 +495,8 @@ export class Arena {
       player.rightArm.rotation.x = -weight * 0.52;
       player.sword.rotation.z = -0.2 - weight * 1.05;
     }
-    // The enemy eases out of its completed swing as the next telegraph begins.
-    // This tiny step is layered beneath the next intent's wind-up pose.
-    if (this.enemyAttackRecovery > 0 && snapshot.phase === 'telegraph') {
+    // The enemy eases out of its completed swing during its turn-end beat.
+    if (this.enemyAttackRecovery > 0 && (snapshot.phase === 'turn-end' && snapshot.activeSide === 'enemy')) {
       const recovery = this.recoveryWeight(this.enemyAttackRecovery, 0.18);
       enemy.root.position.x -= recovery * 1.35;
     }
@@ -674,7 +673,7 @@ export class Arena {
     const active = snapshot.phase === 'counter' || this.counterResolvedPhase || this.counterPose > 0;
     const target = active ? 1 : 0;
     if (this.reducedMotion.matches) this.letterboxAmount = target;
-    else {
+    else if (!snapshot.paused) {
       const speed = target > this.letterboxAmount ? 3.6 : 5.2;
       this.letterboxAmount = THREE.MathUtils.clamp(this.letterboxAmount + Math.sign(target - this.letterboxAmount) * speed * delta, 0, 1);
     }

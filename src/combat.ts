@@ -1,5 +1,6 @@
 export type CardId = 'quick' | 'heavy' | 'guard' | 'counter';
 export type ControlMode = 'queue' | 'qte';
+export type Side = 'player' | 'enemy';
 
 export type Phase =
   | 'ready'
@@ -8,6 +9,7 @@ export type Phase =
   | 'acting'
   | 'counter'
   | 'resolve'
+  | 'turn-end'
   | 'victory'
   | 'defeat';
 
@@ -23,14 +25,44 @@ export interface CardDefinition {
 export const CARDS: readonly CardDefinition[] = [
   { id: 'quick', name: 'Quick Strike', cost: 1, damage: 1, description: 'Deal 1 damage.', cooldownRounds: 0 },
   { id: 'heavy', name: 'Heavy Strike', cost: 2, damage: 3, description: 'Deal 3 damage. One-round cooldown.', cooldownRounds: 1 },
-  { id: 'guard', name: 'Guard', cost: 1, damage: 0, description: 'Reduce the next hit this round by 2.', cooldownRounds: 0 },
+  { id: 'guard', name: 'Guard', cost: 1, damage: 0, description: 'Reduce the next actual hit by 2, retaining protection across turns.', cooldownRounds: 0 },
   { id: 'counter', name: 'Counter', cost: 2, damage: 2, description: 'Cancel the incoming attack and deal 2 damage.', cooldownRounds: 1 },
 ];
+
+export interface EnemyCardDefinition {
+  readonly id: string;
+  readonly name: string;
+  readonly cost: number;
+  readonly kind: 'damage' | 'guard';
+  readonly damage: number;
+  readonly attack: 'light' | 'heavy';
+}
+
+export const ENEMY_CARDS: readonly EnemyCardDefinition[] = [
+  { id: 'light', name: '轻攻击', cost: 1, kind: 'damage', damage: 2, attack: 'light' },
+  { id: 'heavy', name: '重攻击', cost: 2, kind: 'damage', damage: 4, attack: 'heavy' },
+];
+
+export interface CombatOptions {
+  readonly firstSide?: Side;
+  readonly playerTurnSeconds?: number;
+  readonly enemyCards?: readonly EnemyCardDefinition[];
+  readonly playerHand?: readonly CardId[];
+}
 
 export interface CombatSnapshot {
   controlMode: ControlMode;
   phase: Phase;
   round: number;
+  activeSide: Side;
+  playerTurn: number;
+  enemyTurn: number;
+  enemyAp: number;
+  enemyMaxAp: number;
+  enemyGuard: number;
+  pendingEnemyCard: EnemyCardDefinition | null;
+  playerTurnSeconds: number;
+  lastRecoverySide: Side | null;
   playerHp: number;
   enemyHp: number;
   ap: number;
@@ -53,6 +85,7 @@ const CARD_BY_ID = Object.fromEntries(CARDS.map((card) => [card.id, card])) as R
 const MAX_LOG_ENTRIES = 16;
 const ACTION_BEAT_SECONDS = 0.55;
 const RESOLVE_SECONDS = 0.65;
+const TURN_END_SECONDS = 0.45;
 const LIGHT_TELEGRAPH_SECONDS = 1.1;
 const HEAVY_TELEGRAPH_SECONDS = 1.6;
 const DEFAULT_REACTION_SPEED = 4;
@@ -64,10 +97,30 @@ const SLOW_MOTION = 0.15;
 
 /** Deterministic combat rules. `tick` receives elapsed real-world seconds. */
 export class Combat {
-  constructor(private readonly controlMode: ControlMode = 'queue') {}
+  private readonly playerHand: ReadonlySet<CardId>;
+  private readonly firstSide: Side;
+  private readonly playerTurnSeconds: number;
+  private readonly enemyCards: readonly EnemyCardDefinition[];
+
+  constructor(private readonly controlMode: ControlMode = 'queue', options: CombatOptions = {}) {
+    this.playerHand = new Set(options.playerHand ?? CARDS.map(card => card.id));
+    this.firstSide = options.firstSide ?? 'player';
+    this.playerTurnSeconds = options.playerTurnSeconds ?? PLAN_SECONDS;
+    if (!Number.isFinite(this.playerTurnSeconds) || this.playerTurnSeconds < 0) throw new Error('Invalid player turn duration.');
+    const cards = options.enemyCards ?? ENEMY_CARDS;
+    if (!cards.length || cards.some(card => !Number.isFinite(card.cost) || card.cost < 0 || card.cost > DEFAULT_ACTION_POINTS || !Number.isFinite(card.damage) || card.damage < 0)) throw new Error('Invalid enemy cards.');
+    this.enemyCards = cards.map(card => ({ ...card }));
+  }
 
   private phase: Phase = 'ready';
   private round = 1;
+  private activeSide: Side = 'player';
+  private playerTurn = 1;
+  private enemyTurn = 0;
+  private enemyAp = DEFAULT_ACTION_POINTS;
+  private enemyGuard = 0;
+  private pendingEnemyCard: EnemyCardDefinition | null = null;
+  private lastRecoverySide: Side | null = null;
   private playerHp = 10;
   private enemyHp = 12;
   private ap = DEFAULT_ACTION_POINTS;
@@ -99,14 +152,21 @@ export class Combat {
   }
 
   private reset(): void {
-    this.phase = 'telegraph';
+    this.phase = 'planning';
     this.round = 1;
+    this.activeSide = this.firstSide;
+    this.playerTurn = this.firstSide === 'player' ? 1 : 0;
+    this.enemyTurn = 0;
+    this.enemyAp = DEFAULT_ACTION_POINTS;
+    this.enemyGuard = 0;
+    this.pendingEnemyCard = null;
+    this.lastRecoverySide = null;
     this.playerHp = 10;
     this.enemyHp = 12;
     this.maxAp = DEFAULT_ACTION_POINTS;
     this.ap = this.maxAp;
-    this.remaining = LIGHT_TELEGRAPH_SECONDS;
-    this.planningDuration = PLAN_SECONDS;
+    this.remaining = this.playerTurnSeconds;
+    this.planningDuration = this.playerTurnSeconds;
     this.savedPlanningBudget = 0;
     this.queue = [];
     this.committed = [];
@@ -122,7 +182,9 @@ export class Combat {
     this.usedRound = {};
     this.enemyAttackCancelled = false;
     this.started = true;
-    this.addLog('Encounter started. Light attack incoming for 2 damage.');
+    this.addLog('对决开始。');
+    if (this.firstSide === 'enemy') this.beginEnemyTurn();
+    else this.addLog('玩家回合 1。');
   }
 
   tick(realSeconds: number): void {
@@ -139,7 +201,7 @@ export class Combat {
         break;
       }
       const toBoundary = Math.max(0, duration - this.phaseElapsed);
-      if (toBoundary > left) {
+      if (toBoundary - left > 1e-9) {
         this.advanceContinuous(left);
         this.phaseElapsed += left;
         if (this.phase === 'planning' || this.phase === 'counter') this.remaining = Math.max(0, this.remaining - left);
@@ -148,7 +210,7 @@ export class Combat {
         this.advanceContinuous(toBoundary);
         this.phaseElapsed = duration;
         if (this.phase === 'planning' || this.phase === 'counter') this.remaining = 0;
-        left -= toBoundary;
+        left = Math.max(0, left - toBoundary);
         this.finishPhase();
       }
     }
@@ -185,8 +247,8 @@ export class Combat {
     if (this.phase === 'counter') {
       if (id !== 'counter') return false;
       this.ap -= CARD_BY_ID.counter.cost;
-      this.usedRound.counter = this.round;
-      this.readyRound.counter = this.round + CARD_BY_ID.counter.cooldownRounds + 1;
+      this.usedRound.counter = this.playerTurn;
+      this.readyRound.counter = this.playerTurn + CARD_BY_ID.counter.cooldownRounds + 1;
       this.enemyAttackCancelled = true;
       this.dealDamage('enemy', CARD_BY_ID.counter.damage, 'Counter');
       if (!this.isTerminal()) {
@@ -212,7 +274,7 @@ export class Combat {
     if (this.phase === 'planning') {
       if (this.queue.length === 0) {
         this.addLog('Planning skipped.');
-        this.beginCounterOrResolve();
+        this.endTurn();
         return;
       }
       this.committed = [...this.queue];
@@ -231,8 +293,8 @@ export class Combat {
         return;
       }
       this.ap -= CARD_BY_ID.counter.cost;
-      this.usedRound.counter = this.round;
-      this.readyRound.counter = this.round + CARD_BY_ID.counter.cooldownRounds + 1;
+      this.usedRound.counter = this.playerTurn;
+      this.readyRound.counter = this.playerTurn + CARD_BY_ID.counter.cooldownRounds + 1;
       this.enemyAttackCancelled = true;
       this.queue = [];
       this.dealDamage('enemy', CARD_BY_ID.counter.damage, 'Counter');
@@ -248,7 +310,7 @@ export class Combat {
     if (this.phase === 'planning') {
       this.queue = [];
       this.addLog('Planning skipped.');
-      this.beginCounterOrResolve();
+      this.endTurn();
     } else if (this.phase === 'counter') {
       this.queue = [];
       this.skipCounter();
@@ -262,10 +324,12 @@ export class Combat {
 
   availability(id: CardId): string | null {
     if (!CARD_BY_ID[id]) return 'Unknown card.';
+    if (!this.playerHand.has(id)) return '当前手牌中没有这张牌。';
     if (this.isTerminal()) return 'Combat has ended.';
     if (this.paused) return 'Combat is paused.';
-    if (this.isOnCooldown(id)) return `On cooldown until round ${this.readyRound[id]}.`;
+    if (this.isOnCooldown(id)) return `冷却中，第 ${this.readyRound[id]} 个玩家回合可用。`;
     if (this.phase !== 'planning' && this.phase !== 'counter') return 'Card selection is unavailable in this phase.';
+    if (this.phase === 'planning' && this.activeSide !== 'player') return '敌人回合只能按触发条件反击。';
     if (this.phase === 'counter' && id !== 'counter') return 'Only Counter is available during the counter phase.';
     if (this.phase === 'planning' && id === 'counter') return 'Counter is only available during the counter phase.';
     if (this.queue.includes(id)) return null;
@@ -278,13 +342,22 @@ export class Combat {
     const cooldowns = {} as Record<CardId, number>;
     for (const { id } of CARDS) {
       const ready = this.readyRound[id] ?? 0;
-      const used = this.usedRound[id] === this.round;
-      cooldowns[id] = Math.max(0, ready - this.round - (used ? 1 : 0));
+      const used = this.usedRound[id] === this.playerTurn;
+      cooldowns[id] = Math.max(0, ready - this.playerTurn - (used ? 1 : 0));
     }
     return {
       controlMode: this.controlMode,
       phase: this.phase,
       round: this.round,
+      activeSide: this.activeSide,
+      playerTurn: this.playerTurn,
+      enemyTurn: this.enemyTurn,
+      enemyAp: this.enemyAp,
+      enemyMaxAp: DEFAULT_ACTION_POINTS,
+      enemyGuard: this.enemyGuard,
+      pendingEnemyCard: this.pendingEnemyCard ? { ...this.pendingEnemyCard } : null,
+      playerTurnSeconds: this.playerTurnSeconds,
+      lastRecoverySide: this.lastRecoverySide,
       playerHp: this.playerHp,
       enemyHp: this.enemyHp,
       ap: this.ap,
@@ -295,7 +368,7 @@ export class Combat {
       activeCard: this.activeCard,
       guard: this.guard,
       enemyAttack: this.enemyAttack,
-      enemyDamage: this.enemyAttack === 'light' ? 2 : 4,
+      enemyDamage: this.enemyDamage(),
       visualTime: this.visualTime,
       phaseElapsed: this.phaseElapsed,
       paused: this.paused,
@@ -307,10 +380,11 @@ export class Combat {
   private phaseDuration(): number | null {
     switch (this.phase) {
       case 'telegraph': return this.enemyAttack === 'light' ? LIGHT_TELEGRAPH_SECONDS : HEAVY_TELEGRAPH_SECONDS;
-      case 'planning': return this.planningDuration;
+      case 'planning': return this.playerTurnSeconds === 0 ? null : this.planningDuration;
       case 'acting': return ACTION_BEAT_SECONDS;
       case 'counter': return COUNTER_SECONDS;
       case 'resolve': return RESOLVE_SECONDS;
+      case 'turn-end': return TURN_END_SECONDS;
       default: return null;
     }
   }
@@ -322,14 +396,13 @@ export class Combat {
   private finishPhase(): void {
     switch (this.phase) {
       case 'telegraph':
-        this.setPhase('planning', PLAN_SECONDS);
-        this.addLog(`Enemy ${this.enemyAttack} attack incoming for ${this.enemyDamage()} damage.`);
+        this.checkCounterOrResolve();
         break;
       case 'planning':
         if (this.queue.length > 0) this.submit();
         else {
           this.addLog('Planning window expired.');
-          this.beginCounterOrResolve();
+          this.endTurn();
         }
         break;
       case 'acting':
@@ -343,7 +416,10 @@ export class Combat {
         }
         break;
       case 'resolve':
-        this.resolveIncomingAttackAndAdvance();
+        this.resolveEnemyCard();
+        break;
+      case 'turn-end':
+        this.finishTurn();
         break;
       default:
         break;
@@ -353,14 +429,14 @@ export class Combat {
   private resolveActiveCard(): void {
     const id = this.committed[this.actionIndex];
     if (!id) {
-      this.beginCounterOrResolve();
+      this.endTurn();
       return;
     }
     this.activeCard = id;
-    this.usedRound[id] = this.round;
-    this.readyRound[id] = this.round + CARD_BY_ID[id].cooldownRounds + 1;
+    this.usedRound[id] = this.playerTurn;
+    this.readyRound[id] = this.playerTurn + CARD_BY_ID[id].cooldownRounds + 1;
     if (id === 'guard') {
-      this.guard += 2;
+      this.guard = 2;
       this.addLog('Guard is ready to reduce the next hit by 2.');
     } else {
       this.dealDamage('enemy', CARD_BY_ID[id].damage, CARD_BY_ID[id].name);
@@ -376,56 +452,92 @@ export class Combat {
       if (this.controlMode === 'qte' && this.canResumePlanning()) {
         this.setPhase('planning', this.savedPlanningBudget);
       } else {
-        this.beginCounterOrResolve();
+        this.endTurn();
       }
     }
   }
 
-  private beginCounterOrResolve(): void {
-    this.committed = [];
-    this.activeCard = null;
-    this.queue = [];
+  private endTurn(): void {
+    if (this.isTerminal() || this.phase === 'turn-end') return;
+    this.queue = []; this.committed = []; this.activeCard = null;
+    this.setPhase('turn-end', TURN_END_SECONDS);
+  }
+
+  private finishTurn(): void {
     if (this.isTerminal()) return;
-    if (!this.isOnCooldown('counter') && this.ap >= CARD_BY_ID.counter.cost) {
+    this.lastRecoverySide = this.activeSide;
+    if (this.activeSide === 'player') {
+      this.ap = this.maxAp;
+      this.addLog('玩家回合结束，玩家行动点恢复至 3。');
+      this.beginEnemyTurn();
+    } else {
+      this.enemyAp = DEFAULT_ACTION_POINTS;
+      this.addLog('敌人回合结束，敌人行动点恢复至 3。');
+      this.pendingEnemyCard = null;
+      this.enemyAttackCancelled = false;
+      this.activeSide = 'player';
+      this.enemyAttack = this.enemyCards[this.enemyTurn % this.enemyCards.length].attack;
+      this.playerTurn++;
+      this.round = this.playerTurn;
+      this.setPhase('planning', this.playerTurnSeconds);
+      this.addLog(`玩家回合 ${this.playerTurn}。`);
+    }
+  }
+
+  private beginEnemyTurn(): void {
+    this.activeSide = 'enemy';
+    this.enemyTurn++;
+    this.enemyAttackCancelled = false;
+    const card = this.enemyCards[(this.enemyTurn - 1) % this.enemyCards.length];
+    this.pendingEnemyCard = { ...card };
+    this.enemyAttack = card.attack;
+    this.enemyAp -= card.cost;
+    this.addLog(`敌人出牌：${card.name}，消耗 ${card.cost} 点行动点。`);
+    this.setPhase('telegraph', card.attack === 'heavy' ? HEAVY_TELEGRAPH_SECONDS : LIGHT_TELEGRAPH_SECONDS);
+  }
+
+  private checkCounterOrResolve(): void {
+    const card = this.pendingEnemyCard;
+    const usable = card?.kind === 'damage' && card.damage > 0
+      && this.playerHand.has('counter') && !this.isOnCooldown('counter') && this.ap >= CARD_BY_ID.counter.cost;
+    if (usable) {
       this.setPhase('counter', COUNTER_SECONDS);
       this.addLog('Counter window open.');
-    } else {
-      this.setPhase('resolve', RESOLVE_SECONDS);
-    }
+    } else this.setPhase('resolve', RESOLVE_SECONDS);
   }
 
   private skipCounter(): void {
     if (this.phase !== 'counter') return;
+    this.queue = [];
     this.setPhase('resolve', RESOLVE_SECONDS);
     this.addLog('Counter skipped.');
   }
 
-  private resolveIncomingAttackAndAdvance(): void {
+  private resolveEnemyCard(): void {
+    const card = this.pendingEnemyCard;
+    if (!card) throw new Error('Enemy resolution requires a committed card.');
     if (!this.enemyAttackCancelled) {
-      const prevented = Math.min(this.guard, this.enemyDamage());
-      this.guard -= prevented;
-      const damage = Math.max(0, this.enemyDamage() - prevented);
-      if (prevented > 0) this.addLog(`Enemy attack: ${prevented} damage guarded.`);
-      this.dealDamage('player', damage, 'Enemy attack');
-      if (this.isTerminal()) return;
-    } else {
-      this.addLog('Incoming attack cancelled.');
-    }
-    this.round++;
-    this.enemyAttack = this.enemyAttack === 'light' ? 'heavy' : 'light';
-    this.ap = this.maxAp;
-    this.guard = 0;
-    this.enemyAttackCancelled = false;
-    this.queue = [];
-    this.committed = [];
-    this.activeCard = null;
-    this.setPhase('telegraph', this.enemyAttack === 'light' ? LIGHT_TELEGRAPH_SECONDS : HEAVY_TELEGRAPH_SECONDS);
-    this.addLog(`Round ${this.round}. ${this.enemyAttack} attack incoming for ${this.enemyDamage()} damage.`);
+      if (card.kind === 'damage') {
+        const prevented = Math.min(this.guard, card.damage);
+        // Guard protects the next actual hit only; a cancelled hit does not consume it.
+        this.guard = 0;
+        if (prevented > 0) this.addLog(`Enemy attack: ${prevented} damage guarded.`);
+        this.dealDamage('player', Math.max(0, card.damage - prevented), 'Enemy attack');
+        if (this.isTerminal()) return;
+      } else {
+        this.enemyGuard = 2;
+        this.addLog('敌人架起格挡，下次受击减伤 2 点。');
+      }
+    } else this.addLog('Incoming attack cancelled.');
+    this.endTurn();
   }
 
   private dealDamage(target: 'player' | 'enemy', amount: number, source: string): void {
     if (amount <= 0 || this.isTerminal()) return;
     if (target === 'enemy') {
+      const prevented = Math.min(this.enemyGuard, amount);
+      this.enemyGuard = 0;
+      amount -= prevented;
       this.enemyHp = Math.max(0, this.enemyHp - amount);
       this.addLog(`${source} deals ${amount} damage to the enemy (${this.enemyHp} HP left).`);
       if (this.enemyHp === 0) this.endCombat('victory');
@@ -443,6 +555,7 @@ export class Combat {
     this.queue = [];
     this.committed = [];
     this.activeCard = null;
+    this.pendingEnemyCard = null;
     this.paused = false;
     this.addLog(result === 'victory' ? 'Victory.' : 'Defeat.');
   }
@@ -455,18 +568,18 @@ export class Combat {
   }
 
   private canResumePlanning(): boolean {
-    if (this.savedPlanningBudget <= 0 || this.ap <= 0) return false;
+    if ((this.playerTurnSeconds > 0 && this.savedPlanningBudget <= 0) || this.ap <= 0) return false;
     return (['quick', 'heavy', 'guard'] as const).some((id) =>
-      !this.isOnCooldown(id) && this.ap >= CARD_BY_ID[id].cost,
+      this.playerHand.has(id) && !this.isOnCooldown(id) && this.ap >= CARD_BY_ID[id].cost,
     );
   }
 
   private isOnCooldown(id: CardId): boolean {
-    return this.usedRound[id] === this.round || this.round < (this.readyRound[id] ?? 0);
+    return this.usedRound[id] === this.playerTurn || this.playerTurn < (this.readyRound[id] ?? 0);
   }
 
   private enemyDamage(): number {
-    return this.enemyAttack === 'light' ? 2 : 4;
+    return this.pendingEnemyCard?.damage ?? this.enemyCards[this.enemyTurn % this.enemyCards.length].damage;
   }
 
   private isTerminal(): boolean {

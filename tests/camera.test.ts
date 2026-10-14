@@ -5,7 +5,7 @@ import { CameraDirector } from '../src/camera';
 function snapshot(overrides: Partial<CombatSnapshot> = {}): CombatSnapshot {
   return {
     controlMode: 'qte', phase: 'planning', round: 1, playerHp: 10, enemyHp: 12,
-    ap: 3, maxAp: 3, remaining: 4, queue: [], committed: [], activeCard: null,
+    activeSide: 'player', playerTurn: 1, enemyTurn: 0, enemyAp: 3, enemyMaxAp: 3, enemyGuard: 0, pendingEnemyCard: null, playerTurnSeconds: 4, lastRecoverySide: null, ap: 3, maxAp: 3, remaining: 4, queue: [], committed: [], activeCard: null,
     guard: 0, enemyAttack: 'light', enemyDamage: 2, visualTime: 0, phaseElapsed: 0,
     paused: false, log: [], cooldowns: { quick: 0, heavy: 0, guard: 0, counter: 0 },
     ...overrides,

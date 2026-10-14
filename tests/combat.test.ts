@@ -1,392 +1,207 @@
 import { describe, expect, it } from 'vitest';
-import { CARDS, Combat, type CardId, type Phase } from '../src/combat';
+import { CARDS, Combat, type CardId, type Phase, type CombatOptions } from '../src/combat';
 
-function advanceUntil(combat: Combat, phase: Phase, maxSeconds = 30): void {
-  for (let elapsed = 0; elapsed < maxSeconds && combat.snapshot().phase !== phase; elapsed += 0.1) {
-    combat.tick(0.1);
-  }
+function until(combat: Combat, phase: Phase, maxSeconds = 20): void {
+  for (let elapsed = 0; combat.snapshot().phase !== phase && elapsed < maxSeconds; elapsed += .01) combat.tick(.01);
   expect(combat.snapshot().phase).toBe(phase);
 }
-
-function playCard(combat: Combat, id: CardId): void {
-  expect(combat.toggleCard(id)).toBe(true);
-  combat.submit();
-  // Action cards resolve at the end of a 0.55 second action beat.
-  for (let elapsed = 0; elapsed < 1; elapsed += 0.1) {
-    if (combat.snapshot().phase !== 'acting') break;
-    combat.tick(0.1);
-  }
+function start(options: CombatOptions = {}, mode: 'qte' | 'queue' = 'qte'): Combat {
+  const combat = new Combat(mode, options); combat.start(); return combat;
+}
+function play(combat: Combat, card: CardId): void {
+  expect(combat.playCard(card)).toBe(true); combat.tick(.55);
+}
+function enemyTurn(combat: Combat): void {
+  if (combat.snapshot().phase === 'planning') combat.skip();
+  until(combat, 'telegraph');
+}
+function nextPlayer(combat: Combat): void {
+  if (combat.snapshot().phase === 'counter') combat.skip();
+  until(combat, 'planning');
 }
 
-describe('combat rules', () => {
-  it('supports direct QTE combos, rejects repeated cards, and preserves the saved planning budget', () => {
-    const combat = new Combat('qte');
-    combat.start();
-    advanceUntil(combat, 'planning');
-    expect(combat.snapshot().controlMode).toBe('qte');
-    combat.tick(1);
-    const budget = combat.snapshot().remaining;
-
-    expect(combat.playCard('quick')).toBe(true);
-    expect(combat.playCard('guard')).toBe(false); // Acting input is rejected.
-    combat.tick(0.6);
-    expect(combat.snapshot()).toMatchObject({ phase: 'planning', ap: 2, remaining: budget - 0.05, enemyHp: 11 });
-    expect(combat.playCard('quick')).toBe(false);
-    expect(combat.playCard('guard')).toBe(true);
-    combat.tick(0.6);
-    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', ap: 1, guard: 2 });
-    // The remaining AP cannot buy another unused ordinary card, so the window closes.
-    expect(combat.playCard('heavy')).toBe(false);
-    expect(combat.playCard('quick')).toBe(false);
-    expect(combat.snapshot().phase).toBe('resolve');
-  });
-
-  it('expires a resumed QTE window using its remaining time, while action playback does not spend it', () => {
-    const combat = new Combat('qte');
-    combat.start();
-    advanceUntil(combat, 'planning');
-    combat.tick(2);
-    const budget = combat.snapshot().remaining;
-    expect(combat.playCard('guard')).toBe(true);
-    combat.tick(0.55);
-    expect(combat.snapshot()).toMatchObject({ phase: 'planning', remaining: budget, guard: 2 });
-    combat.tick(budget);
-    expect(combat.snapshot().phase).toBe('counter');
-  });
-
-  it('submits a QTE counter immediately and rejects paused actions, then restart keeps the selected mode', () => {
-    const combat = new Combat('qte');
-    combat.start();
-    advanceUntil(combat, 'planning');
-    expect(combat.playCard('quick')).toBe(true);
-    combat.tick(0.55);
-    expect(combat.snapshot().phase).toBe('planning');
-    combat.skip();
-    expect(combat.snapshot().phase).toBe('counter');
-    combat.setPaused(true);
-    expect(combat.playCard('counter')).toBe(false);
-    combat.setPaused(false);
-    expect(combat.playCard('counter')).toBe(true);
-    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', ap: 0, enemyHp: 9 });
-    combat.restart();
-    expect(combat.snapshot()).toMatchObject({ phase: 'telegraph', controlMode: 'qte', round: 1, ap: 3 });
-  });
-
-  it('prevents a pre-existing queue from being consumed by direct QTE play', () => {
-    const combat = new Combat('qte');
-    combat.start();
-    advanceUntil(combat, 'planning');
-    expect(combat.toggleCard('quick')).toBe(false);
-    expect(combat.snapshot().queue).toEqual([]);
-    expect(combat.playCard('quick')).toBe(true);
-  });
-
-  it('cancels the QTE chain on lethal damage', () => {
-    const combat = new Combat('qte');
-    combat.start();
-    // Heavy and quick in round one leave the enemy at eight HP; two later
-    // heavy/quick combinations finish it without ever repeating a card in a round.
-    for (let round = 0; round < 6 && combat.snapshot().phase !== 'victory'; round++) {
-      advanceUntil(combat, 'planning');
-      if (combat.availability('heavy') === null) {
-        expect(combat.playCard('heavy')).toBe(true);
-        combat.tick(0.55);
-      }
-      if (combat.snapshot().phase === 'planning' && combat.availability('quick') === null) {
-        expect(combat.playCard('quick')).toBe(true);
-        combat.tick(0.55);
-      }
-      if (combat.snapshot().phase === 'planning' && combat.availability('guard') === null) {
-        expect(combat.playCard('guard')).toBe(true);
-        combat.tick(0.55);
-      }
-      if (combat.snapshot().phase === 'planning') combat.skip();
-      if (combat.snapshot().phase === 'counter') combat.skip();
-      if (combat.snapshot().phase === 'resolve') combat.tick(0.7);
-    }
-    expect(combat.snapshot()).toMatchObject({ phase: 'victory', enemyHp: 0, activeCard: null, committed: [] });
-    expect(combat.playCard('quick')).toBe(false);
-  });
-
-  it('automatically submits both planning and counter previews on expiry, once only', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    combat.toggleCard('quick');
-    advanceUntil(combat, 'counter');
-    expect(combat.snapshot()).toMatchObject({ ap: 2, enemyHp: 11 });
-    combat.toggleCard('counter');
-    advanceUntil(combat, 'resolve');
-    expect(combat.snapshot()).toMatchObject({ ap: 0, enemyHp: 9 });
-    combat.submit();
-    combat.tick(0.7);
-    expect(combat.snapshot()).toMatchObject({ playerHp: 10, round: 2 });
-    expect(combat.snapshot().log.filter((line) => line === 'Counter window open.')).toHaveLength(1);
-  });
-
-  it('returns detached snapshots and removal cannot duplicate an action', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    combat.toggleCard('quick');
-    combat.toggleCard('quick');
-    combat.toggleCard('quick');
-    const snapshot = combat.snapshot();
-    snapshot.queue.push('quick');
-    snapshot.cooldowns.heavy = 999;
-    snapshot.log.push('Injected event');
-    expect(combat.snapshot().queue).toEqual(['quick']);
-    expect(combat.snapshot().cooldowns.heavy).toBe(0);
-    combat.submit();
-    combat.submit();
-    advanceUntil(combat, 'counter');
-    expect(combat.snapshot()).toMatchObject({ ap: 2, enemyHp: 11 });
-  });
-
-  it('empty deadlines progress into damage and Guard reduces a heavy hit by exactly two', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    advanceUntil(combat, 'counter');
-    advanceUntil(combat, 'resolve');
-    combat.tick(0.7);
-    expect(combat.snapshot()).toMatchObject({ round: 2, playerHp: 8, enemyAttack: 'heavy' });
-    advanceUntil(combat, 'planning');
-    combat.toggleCard('guard');
-    combat.submit();
-    advanceUntil(combat, 'counter');
-    combat.skip();
-    combat.tick(0.7);
-    expect(combat.snapshot()).toMatchObject({ round: 3, playerHp: 6, guard: 0 });
-  });
-  it('exports the frozen card contract and starts/restarts with a complete encounter reset', () => {
-    expect(CARDS.map(({ id }) => id)).toEqual(['quick', 'heavy', 'guard', 'counter']);
-    const combat = new Combat();
-    expect(combat.snapshot().phase).toBe('ready');
-    combat.start();
-    expect(combat.snapshot()).toMatchObject({
-      phase: 'telegraph', round: 1, playerHp: 10, enemyHp: 12, ap: 3, maxAp: 3,
-      enemyAttack: 'light', enemyDamage: 2, remaining: 1.1,
-    });
-
-    advanceUntil(combat, 'planning');
-    combat.toggleCard('heavy');
-    combat.submit();
-    expect(combat.snapshot().phase).toBe('acting');
-    combat.restart();
-    expect(combat.snapshot()).toMatchObject({
-      phase: 'telegraph', round: 1, playerHp: 10, enemyHp: 12, ap: 3,
-      queue: [], committed: [], activeCard: null, guard: 0, enemyAttack: 'light',
-      remaining: 1.1, paused: false,
-    });
+describe('side-owned card turns', () => {
+  it('starts player-first and restarts all side resources, counters and pending effects', () => {
+    const combat = start();
+    expect(CARDS.map(card => card.id)).toEqual(['quick', 'heavy', 'guard', 'counter']);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', activeSide: 'player', ap: 3, enemyAp: 3, playerTurn: 1, enemyTurn: 0, remaining: 4 });
+    enemyTurn(combat); until(combat, 'counter'); combat.playCard('counter');
+    combat.setPaused(true); combat.restart();
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', activeSide: 'player', ap: 3, enemyAp: 3, guard: 0, playerTurn: 1, enemyTurn: 0, pendingEnemyCard: null, paused: false, lastRecoverySide: null });
     expect(combat.snapshot().cooldowns).toEqual({ quick: 0, heavy: 0, guard: 0, counter: 0 });
   });
 
-  it('ignores invalid deltas and advances remainder across telegraph into a real-time planning window', () => {
-    const combat = new Combat();
-    combat.start();
-    combat.tick(Number.NaN);
-    combat.tick(Number.POSITIVE_INFINITY);
-    combat.tick(-1);
-    expect(combat.snapshot().remaining).toBeCloseTo(1.1);
-    // This tick crosses the 1.1 second telegraph boundary with 0.1 seconds left.
-    combat.tick(1.2);
-    expect(combat.snapshot().phase).toBe('planning');
-    expect(combat.snapshot().remaining).toBeCloseTo(3.9);
-    const beforeVisual = combat.snapshot().visualTime;
-    combat.tick(1);
-    expect(combat.snapshot().remaining).toBeCloseTo(2.9);
-    expect(combat.snapshot().visualTime - beforeVisual).toBeCloseTo(0.15);
+  it('finishes a player card without refilling AP, resumes the saved player-turn timer and rejects repeats', () => {
+    const combat = start(); combat.tick(1);
+    play(combat, 'quick');
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', activeSide: 'player', ap: 2, enemyAp: 3, enemyHp: 11, remaining: 3 });
+    expect(combat.playCard('quick')).toBe(false);
+    play(combat, 'guard');
+    expect(combat.snapshot()).toMatchObject({ phase: 'turn-end', ap: 1, guard: 2, activeSide: 'player' });
+    combat.tick(.44); expect(combat.snapshot().ap).toBe(1);
+    combat.tick(.01);
+    expect(combat.snapshot()).toMatchObject({ phase: 'telegraph', activeSide: 'enemy', ap: 3, enemyAp: 2, guard: 2, lastRecoverySide: 'player' });
   });
 
-  it('reserves queued AP, supports removal, commits once, and resolves ordered damage', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    expect(combat.toggleCard('heavy')).toBe(true);
-    expect(combat.snapshot().queue).toEqual(['heavy']);
-    expect(combat.availability('quick')).toBeNull();
-    expect(combat.toggleCard('heavy')).toBe(true);
-    expect(combat.snapshot().queue).toEqual([]);
-    expect(combat.toggleCard('quick')).toBe(true);
-    expect(combat.toggleCard('heavy')).toBe(true);
-    expect(combat.toggleCard('guard')).toBe(false);
-    const before = combat.snapshot();
-    combat.submit();
-    expect(combat.snapshot()).toMatchObject({ phase: 'acting', ap: 0, queue: [], committed: ['quick', 'heavy'] });
-    expect(before.ap).toBe(3);
-    combat.tick(0.6);
-    expect(combat.snapshot().enemyHp).toBe(11);
-    expect(combat.snapshot().activeCard).toBe('heavy');
-    combat.tick(0.6);
-    expect(combat.snapshot().enemyHp).toBe(8);
-    expect(combat.snapshot().phase).toBe('resolve');
-  });
-
-  it('lets Guard reduce the next hit and carries ordinary-phase AP into the counter eligibility check', () => {
-    const guarded = new Combat();
-    guarded.start();
-    advanceUntil(guarded, 'planning');
-    expect(guarded.toggleCard('guard')).toBe(true);
-    guarded.submit();
-    advanceUntil(guarded, 'counter');
-    expect(guarded.snapshot().guard).toBe(2);
-    guarded.skip();
-    advanceUntil(guarded, 'resolve');
-    guarded.tick(0.7);
-    expect(guarded.snapshot()).toMatchObject({ phase: 'telegraph', playerHp: 10, round: 2, ap: 3 });
-    expect(guarded.snapshot().log.some((line) => line.includes('2 damage guarded'))).toBe(true);
-
-    const reserved = new Combat();
-    reserved.start();
-    advanceUntil(reserved, 'planning');
-    playCard(reserved, 'quick');
-    expect(reserved.snapshot()).toMatchObject({ phase: 'counter', enemyHp: 11, ap: 2 });
-    expect(reserved.availability('counter')).toBeNull();
-  });
-
-  it('resolves Counter only in its eligible phase, spends shared AP, cancels the hit, and cools down through N+1', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    expect(combat.availability('counter')).toContain('only available');
-    playCard(combat, 'quick');
-    expect(combat.snapshot().phase).toBe('counter');
-    expect(combat.toggleCard('counter')).toBe(true);
-    combat.submit();
-    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', enemyHp: 9, ap: 0, queue: [], cooldowns: { counter: 1 } });
-    combat.tick(0.7);
-    expect(combat.snapshot()).toMatchObject({ phase: 'telegraph', playerHp: 10, round: 2 });
-
-    // A later round can pass the unavailable round; Counter is usable again in N+2.
-    advanceUntil(combat, 'planning');
-    combat.skip();
-    advanceUntil(combat, 'telegraph');
-    advanceUntil(combat, 'planning');
-    expect(combat.snapshot().round).toBe(3);
-    expect(combat.snapshot().cooldowns.counter).toBe(0);
-  });
-
-  it('pauses both clocks, blocks actions while paused, and clears pause on restart', () => {
-    const combat = new Combat();
-    combat.start();
-    advanceUntil(combat, 'planning');
-    combat.setPaused(true);
-    const paused = combat.snapshot();
-    combat.tick(2);
-    expect(combat.snapshot()).toEqual(paused);
-    expect(combat.toggleCard('quick')).toBe(false);
-    combat.setPaused(false);
-    combat.tick(1);
-    expect(combat.snapshot().remaining).toBeCloseTo(paused.remaining - 1);
-    combat.setPaused(true);
-    combat.restart();
-    expect(combat.snapshot()).toMatchObject({ phase: 'telegraph', paused: false, remaining: 1.1 });
-  });
-
-  it('cancels remaining work on lethal damage and bounds its event log', () => {
-    const combat = new Combat();
-    combat.start();
-    // Alternate Heavy Strike turns with Quick Strike turns to deal lethal
-    // damage while respecting Heavy's unavailable N+1 cooldown round.
-    for (let strike = 0; strike < 6 && combat.snapshot().phase !== 'victory'; strike++) {
-      advanceUntil(combat, 'planning');
-      const canHeavy = combat.availability('heavy') === null;
-      if (canHeavy) expect(combat.toggleCard('heavy')).toBe(true);
-      if (!canHeavy && combat.snapshot().enemyHp <= 3) expect(combat.toggleCard('guard')).toBe(true);
-      expect(combat.toggleCard('quick')).toBe(true);
-      combat.submit();
-      for (let elapsed = 0; elapsed < 2 && combat.snapshot().phase === 'acting'; elapsed += 0.1) combat.tick(0.1);
-      if (combat.snapshot().phase === 'counter') {
-        if (combat.availability('counter') === null) {
-          expect(combat.toggleCard('counter')).toBe(true);
-          combat.submit();
-        } else combat.skip();
-      }
-      if (combat.snapshot().phase === 'victory') break;
-      advanceUntil(combat, 'telegraph');
-    }
-    const snapshot = combat.snapshot();
-    expect(snapshot.phase).toBe('victory');
-    expect(snapshot.enemyHp).toBe(0);
-    expect(snapshot.committed).toEqual([]);
-    expect(snapshot.activeCard).toBeNull();
-    expect(snapshot.log).toHaveLength(16);
-    expect(combat.toggleCard('quick')).toBe(false);
-    combat.skip();
-    combat.tick(10);
-    expect(combat.snapshot().phase).toBe('victory');
-  });
-
-  it('ends in defeat after lethal incoming damage and stops future round transitions', () => {
-    const combat = new Combat();
-    combat.start();
-    for (let round = 0; round < 5 && combat.snapshot().phase !== 'defeat'; round++) {
-      advanceUntil(combat, 'planning');
-      combat.skip();
+  it('never inserts player ordinary selection into an enemy turn', () => {
+    const combat = start(); enemyTurn(combat);
+    expect(combat.playCard('quick')).toBe(false);
+    const seen = new Set<Phase>();
+    while (combat.snapshot().activeSide === 'enemy') {
+      seen.add(combat.snapshot().phase);
       if (combat.snapshot().phase === 'counter') combat.skip();
-      for (let elapsed = 0; elapsed < 1 && combat.snapshot().phase === 'resolve'; elapsed += 0.1) combat.tick(0.1);
+      combat.tick(.01);
     }
-    const before = combat.snapshot();
-    expect(before.phase).toBe('defeat');
-    expect(before.playerHp).toBe(0);
-    combat.tick(5);
-    expect(combat.snapshot()).toEqual(before);
+    expect(seen.has('planning')).toBe(false);
+    expect(seen).toEqual(new Set(['telegraph', 'counter', 'resolve', 'turn-end']));
   });
 
-  it('supports winning attack-first and counter-saving strategies', () => {
-    const attackFirst = new Combat();
-    attackFirst.start();
-    for (let round = 1; round <= 5 && attackFirst.snapshot().phase !== 'victory'; round++) {
-      advanceUntil(attackFirst, 'planning');
-      if (round % 2 === 1) {
-        expect(attackFirst.toggleCard('heavy')).toBe(true);
-        expect(attackFirst.toggleCard('quick')).toBe(true);
-      } else {
-        expect(attackFirst.toggleCard('quick')).toBe(true);
-        expect(attackFirst.toggleCard('guard')).toBe(true);
-      }
-      attackFirst.submit();
-      for (let elapsed = 0; elapsed < 2 && attackFirst.snapshot().phase === 'acting'; elapsed += 0.1) attackFirst.tick(0.1);
-      if (attackFirst.snapshot().phase === 'counter') attackFirst.skip();
-      if (attackFirst.snapshot().phase !== 'victory') advanceUntil(attackFirst, 'telegraph');
+  it('commits and pays the enemy card before Counter, cancels once and preserves player spending after enemy turn end', () => {
+    const combat = start(); play(combat, 'heavy');
+    expect(combat.snapshot().ap).toBe(1);
+    enemyTurn(combat); until(combat, 'counter');
+    expect(combat.snapshot()).toMatchObject({ ap: 3, enemyAp: 2, pendingEnemyCard: { id: 'light', kind: 'damage', cost: 1 } });
+    expect(combat.playCard('counter')).toBe(true);
+    expect(combat.playCard('counter')).toBe(false);
+    expect(combat.snapshot()).toMatchObject({ phase: 'resolve', ap: 1, enemyAp: 2, enemyHp: 7 });
+    until(combat, 'turn-end');
+    expect(combat.snapshot()).toMatchObject({ ap: 1, enemyAp: 2, playerHp: 10 });
+    until(combat, 'planning');
+    expect(combat.snapshot()).toMatchObject({ ap: 1, enemyAp: 3, activeSide: 'player', playerTurn: 2, lastRecoverySide: 'enemy' });
+    combat.skip(); until(combat, 'telegraph');
+    expect(combat.snapshot()).toMatchObject({ ap: 3, enemyAp: 1, lastRecoverySide: 'player' });
+  });
+
+  it('skips Counter when the card is on cooldown despite sufficient AP', () => {
+    const combat = start(); enemyTurn(combat); until(combat, 'counter'); combat.playCard('counter'); nextPlayer(combat);
+    expect(combat.availability('counter')).toContain('第 3 个玩家回合');
+    enemyTurn(combat); until(combat, 'resolve');
+    expect(combat.snapshot()).toMatchObject({ ap: 3, activeSide: 'enemy', enemyTurn: 2 });
+    expect(combat.snapshot().log.filter(line => line === 'Counter window open.')).toHaveLength(1);
+    nextPlayer(combat); enemyTurn(combat); until(combat, 'counter');
+    expect(combat.availability('counter')).toBeNull();
+  });
+
+  it('enemy-first Counter spending persists into the first player turn with insufficient AP for Heavy', () => {
+    // Enemy-first establishes a genuine reaction before the player's first turn.
+    const combat = start({ firstSide: 'enemy' });
+    until(combat, 'counter'); combat.playCard('counter'); nextPlayer(combat);
+    expect(combat.snapshot().ap).toBe(1);
+    expect(combat.playCard('heavy')).toBe(false);
+    expect(combat.availability('heavy')).toBe('Not enough action points.');
+  });
+
+  it('resolves a non-damage enemy card without offering Counter, and guard absorbs only the next hit', () => {
+    const combat = start({ enemyCards: [{ id: 'defend', name: '敌方格挡', kind: 'guard', cost: 1, damage: 0, attack: 'light' }] });
+    enemyTurn(combat); until(combat, 'resolve');
+    expect(combat.snapshot().log).not.toContain('Counter window open.');
+    nextPlayer(combat); expect(combat.snapshot().enemyGuard).toBe(2);
+    play(combat, 'heavy'); expect(combat.snapshot()).toMatchObject({ enemyHp: 11, enemyGuard: 0 });
+  });
+
+  it('keeps Guard through turn end and a cancelled attack, consuming it on the next real hit', () => {
+    const combat = start(); play(combat, 'guard'); enemyTurn(combat); until(combat, 'counter'); combat.playCard('counter'); nextPlayer(combat);
+    expect(combat.snapshot().guard).toBe(2);
+    enemyTurn(combat); until(combat, 'resolve'); nextPlayer(combat);
+    expect(combat.snapshot()).toMatchObject({ playerHp: 8, guard: 0 });
+  });
+
+  it('skips damage-card Counter checks when the hand has no Counter card', () => {
+    const combat = start({ playerHand: ['quick', 'guard'] });
+    enemyTurn(combat); until(combat, 'resolve');
+    expect(combat.snapshot().log).not.toContain('Counter window open.');
+    expect(combat.playCard('counter')).toBe(false);
+  });
+
+  it('fully blocks light damage and consumes Guard once', () => {
+    const combat = start(); play(combat, 'guard'); enemyTurn(combat); until(combat, 'counter'); nextPlayer(combat);
+    expect(combat.snapshot()).toMatchObject({ playerHp: 10, guard: 0 });
+    expect(combat.snapshot().log).toContain('Enemy attack: 2 damage guarded.');
+  });
+
+  it('retains queue reservation, removal, ordered commit and rejects direct play in queue mode', () => {
+    const combat = start({}, 'queue');
+    expect(combat.playCard('quick')).toBe(false);
+    combat.toggleCard('heavy'); combat.toggleCard('heavy');
+    expect(combat.snapshot().queue).toEqual([]);
+    expect(combat.toggleCard('quick')).toBe(true); expect(combat.toggleCard('heavy')).toBe(true);
+    expect(combat.toggleCard('guard')).toBe(false);
+    combat.submit(); combat.submit();
+    expect(combat.snapshot()).toMatchObject({ phase: 'acting', ap: 0, committed: ['quick', 'heavy'] });
+    combat.tick(.55); expect(combat.snapshot()).toMatchObject({ enemyHp: 11, activeCard: 'heavy' });
+    combat.tick(.55); expect(combat.snapshot()).toMatchObject({ enemyHp: 8, phase: 'turn-end', ap: 0 });
+  });
+
+  it('auto-submits queue and Counter previews on expiry without double spending', () => {
+    const combat = start({}, 'queue'); combat.toggleCard('quick'); until(combat, 'counter');
+    expect(combat.snapshot()).toMatchObject({ enemyHp: 11, ap: 3, enemyAp: 2 });
+    combat.toggleCard('counter'); until(combat, 'resolve');
+    expect(combat.snapshot()).toMatchObject({ enemyHp: 9, ap: 1 });
+    combat.submit(); nextPlayer(combat); expect(combat.snapshot()).toMatchObject({ playerHp: 10, ap: 1, enemyAp: 3 });
+  });
+
+  it('uses real decision time, slow visual time and consumes deltas across turn boundaries', () => {
+    const combat = start(); const initial = combat.snapshot();
+    for (const delta of [NaN, Infinity, -1, 0]) combat.tick(delta);
+    expect(combat.snapshot()).toEqual(initial);
+    combat.tick(1); expect(combat.snapshot()).toMatchObject({ remaining: 3, visualTime: .15 });
+    combat.tick(3.55);
+    expect(combat.snapshot()).toMatchObject({ activeSide: 'enemy', phase: 'telegraph', ap: 3, enemyAp: 2 });
+    expect(combat.snapshot().phaseElapsed).toBeCloseTo(.1);
+  });
+
+  it('pauses selection, reaction and turn-end recovery; restart removes pause', () => {
+    const combat = start(); combat.skip(); combat.setPaused(true);
+    const end = combat.snapshot(); combat.tick(10); expect(combat.snapshot()).toEqual(end);
+    expect(combat.playCard('quick')).toBe(false);
+    combat.setPaused(false); until(combat, 'counter'); combat.setPaused(true);
+    const counter = combat.snapshot(); combat.tick(10); expect(combat.snapshot()).toEqual(counter);
+    expect(combat.playCard('counter')).toBe(false);
+    combat.restart(); expect(combat.snapshot()).toMatchObject({ phase: 'planning', paused: false });
+  });
+
+  it('returns detached snapshots including the committed enemy card and bounds logs', () => {
+    const combat = start(); enemyTurn(combat);
+    const snapshot = combat.snapshot(); (snapshot.pendingEnemyCard as { damage: number }).damage = 99;
+    snapshot.cooldowns.counter = 99; snapshot.log.push('injected'); snapshot.queue.push('quick');
+    expect(combat.snapshot().pendingEnemyCard!.damage).toBe(2);
+    expect(combat.snapshot().queue).toEqual([]);
+    expect(combat.snapshot().cooldowns.counter).toBe(0);
+    expect(combat.snapshot().log).not.toContain('injected');
+  });
+
+  it('offers a configurable untimed player turn without consuming action budget', () => {
+    const combat = start({ playerTurnSeconds: 0 }); combat.tick(99);
+    expect(combat.snapshot().phase).toBe('planning');
+    play(combat, 'quick'); expect(combat.snapshot()).toMatchObject({ phase: 'planning', remaining: 0, ap: 2 });
+  });
+
+  it('allows an attack strategy to win, cancels remaining work on death and freezes terminal state', () => {
+    const combat = start();
+    for (let cycle = 0; cycle < 8 && combat.snapshot().phase !== 'victory'; cycle++) {
+      if (combat.availability('heavy') === null) play(combat, 'heavy');
+      if (combat.snapshot().phase === 'planning' && combat.availability('quick') === null) play(combat, 'quick');
+      if (combat.snapshot().phase === 'victory') break;
+      enemyTurn(combat);
+      if (combat.snapshot().phase === 'telegraph') until(combat, combat.snapshot().cooldowns.counter ? 'resolve' : 'counter');
+      if (combat.snapshot().phase === 'counter') combat.playCard('counter');
+      if (combat.snapshot().phase === 'victory') break;
+      nextPlayer(combat);
     }
-    expect(attackFirst.snapshot()).toMatchObject({ phase: 'victory', enemyHp: 0 });
+    expect(combat.snapshot()).toMatchObject({ phase: 'victory', enemyHp: 0, pendingEnemyCard: null, committed: [], activeCard: null });
+    const terminal = combat.snapshot(); combat.skip(); combat.submit(); combat.tick(99);
+    expect(combat.playCard('quick')).toBe(false); expect(combat.snapshot()).toEqual(terminal);
+    expect(terminal.log.length).toBeLessThanOrEqual(16);
+  });
 
-    const counterSaving = new Combat();
-    counterSaving.start();
-    advanceUntil(counterSaving, 'planning');
-    expect(counterSaving.toggleCard('quick')).toBe(true);
-    counterSaving.submit();
-    for (let elapsed = 0; elapsed < 1 && counterSaving.snapshot().phase === 'acting'; elapsed += 0.1) counterSaving.tick(0.1);
-    expect(counterSaving.snapshot().phase).toBe('counter');
-    expect(counterSaving.toggleCard('counter')).toBe(true);
-    counterSaving.submit();
-    expect(counterSaving.snapshot().enemyHp).toBe(9);
-    advanceUntil(counterSaving, 'telegraph');
-
-    advanceUntil(counterSaving, 'planning');
-    expect(counterSaving.toggleCard('heavy')).toBe(true);
-    expect(counterSaving.toggleCard('guard')).toBe(true);
-    counterSaving.submit();
-    for (let elapsed = 0; elapsed < 2 && counterSaving.snapshot().phase === 'acting'; elapsed += 0.1) counterSaving.tick(0.1);
-    expect(counterSaving.snapshot().phase).toBe('resolve');
-    advanceUntil(counterSaving, 'telegraph');
-
-    advanceUntil(counterSaving, 'planning');
-    expect(counterSaving.toggleCard('quick')).toBe(true);
-    counterSaving.submit();
-    for (let elapsed = 0; elapsed < 1 && counterSaving.snapshot().phase === 'acting'; elapsed += 0.1) counterSaving.tick(0.1);
-    expect(counterSaving.snapshot().phase).toBe('counter');
-    expect(counterSaving.toggleCard('counter')).toBe(true);
-    counterSaving.submit();
-    expect(counterSaving.snapshot().enemyHp).toBe(3);
-    advanceUntil(counterSaving, 'telegraph');
-
-    advanceUntil(counterSaving, 'planning');
-    expect(counterSaving.toggleCard('heavy')).toBe(true);
-    counterSaving.submit();
-    for (let elapsed = 0; elapsed < 1 && counterSaving.snapshot().phase === 'acting'; elapsed += 0.1) counterSaving.tick(0.1);
-    expect(counterSaving.snapshot()).toMatchObject({ phase: 'victory', enemyHp: 0 });
+  it('idle play loses; lethal damage stops recovery and further turns', () => {
+    const combat = start();
+    for (let cycle = 0; cycle < 6 && combat.snapshot().phase !== 'defeat'; cycle++) {
+      enemyTurn(combat); until(combat, 'counter'); combat.skip();
+      combat.tick(.65);
+      if (combat.snapshot().phase !== 'defeat') nextPlayer(combat);
+    }
+    expect(combat.snapshot()).toMatchObject({ phase: 'defeat', playerHp: 0, pendingEnemyCard: null });
+    const end = combat.snapshot(); combat.tick(100); expect(combat.snapshot()).toEqual(end);
   });
 });

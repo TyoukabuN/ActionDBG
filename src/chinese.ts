@@ -2,8 +2,8 @@ import type { CardId } from './combat';
 
 export const CARD_NAMES: Record<CardId, string> = { quick: '快斩', heavy: '重斩', guard: '格挡', counter: '反击' };
 export const CARD_DESCRIPTIONS: Record<CardId, string> = {
-  quick: '造成 1 点伤害。', heavy: '造成 3 点伤害，下一回合冷却。',
-  guard: '本回合下次受击减伤 2 点。', counter: '取消敌方攻击并造成 2 点伤害，下一回合冷却。',
+  quick: '造成 1 点伤害。', heavy: '造成 3 点伤害，下个玩家回合冷却。',
+  guard: '下次受击减伤 2 点，可跨回合保留。', counter: '取消敌方攻击并造成 2 点伤害，下个玩家回合冷却。',
 };
 export const SHOT_NAMES: Record<string, string> = {
   overview: '开场镜头', 'enemy-windup': '敌方起手', decision: '应对时刻',
@@ -17,7 +17,7 @@ export function chineseText(text: string): string {
   const exact: Record<string, string> = {
     'Quick Strike': '快斩', 'Heavy Strike': '重斩', Counter: '反击', Guard: '格挡', 'Enemy attack': '敌方攻击',
     'Encounter started. Light attack incoming for 2 damage.': '对决开始，敌方轻攻击将造成 2 点伤害。',
-    'Planning skipped.': '已结束普通选牌。', 'Planning window expired.': '选牌时间结束。',
+    'Planning skipped.': '已结束玩家回合。', 'Planning window expired.': '选牌时间结束。',
     'Counter window open.': '反击时机开启。', 'Counter window expired.': '反击时间结束。',
     'Counter skipped.': '已放弃反击。', 'Counter cancels the incoming attack.': '反击成功，敌方攻击已取消。',
     'Incoming attack cancelled.': '敌方攻击已取消。',

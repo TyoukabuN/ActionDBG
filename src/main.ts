@@ -19,7 +19,7 @@ root.innerHTML = `
       <div class="scene-frame">
         <canvas id="canvas" data-testid="canvas" aria-label="三维剑术对决"></canvas>
         <div class="scene-shade"></div>
-        <div class="scene-topline"><span class="live-dot"></span><span>对决</span><span class="shot-name" id="shot-name">开场镜头</span><span class="round-chip">回合 <b id="round">01</b></span></div>
+        <div class="scene-topline"><span class="live-dot"></span><span id="turn-owner" data-testid="turn-owner">准备就绪</span><span class="shot-name" id="shot-name">开场镜头</span><span class="round-chip">回合 <b id="round">01</b></span></div>
         <div class="fighters-hud">
           <div class="fighter-card player-card">
             <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>挑战者</b><small>海岸守卫</small></div></div>
@@ -44,7 +44,7 @@ root.innerHTML = `
         <div class="overlay" id="overlay" aria-live="polite">
           <div class="overlay-kicker"><span class="ornament">✦</span> 沉没竞技场 <span class="ornament">✦</span></div>
           <h1 id="overlay-title">迎战决斗者</h1>
-          <p id="overlay-copy">观察敌人的前摇，按下招式立即出牌。保留 2 点行动点用于反击。</p>
+          <p id="overlay-copy">在自己的回合出牌。结束回合恢复自己的行动点，敌人出牌时可反击。</p>
           <button class="primary-button" id="start" data-testid="start"><span>进入竞技场</span><b>↗</b></button>
           <div class="key-hint">按 <kbd>回车</kbd> 开始</div>
         </div>
@@ -52,7 +52,7 @@ root.innerHTML = `
         <div class="webgl-error" id="webgl-error" hidden role="alert"><b>无法绘制竞技场。</b><span>浏览器可能不支持 WebGL，请尝试启用硬件加速。</span></div>
       </div>
       <div class="combat-strip" aria-label="行动点与出牌序列">
-        <div class="ap-cluster"><span class="ap-symbol">✦</span><div class="ap-numbers"><span class="ap-label">行动点</span><div><b id="ap" data-testid="ap">3</b><span class="ap-divider">/</span><span id="ap-max">3</span><span class="ap-available-label">可用</span></div></div><div class="ap-pips" id="ap-pips"></div><span class="reserved-readout" id="ap-reserved">预留 0 点</span></div>
+        <div class="ap-cluster"><span class="ap-symbol">✦</span><div class="ap-numbers"><span class="ap-label">玩家行动点</span><div><b id="ap" data-testid="ap">3</b><span class="ap-divider">/</span><span id="ap-max">3</span><span class="ap-available-label">可用</span></div></div><div class="ap-pips" id="ap-pips"></div><span class="reserved-readout" id="ap-reserved">预留 0 点</span><span class="enemy-ap-readout">敌方 <b id="enemy-ap" data-testid="enemy-ap">3</b>/3</span></div>
         <div class="queue-cluster"><div class="queue-title"><span id="sequence-label">下一步应对</span><span class="queue-count" id="queue-count">0</span></div><ol class="queue-list" id="queue" data-testid="queue"><li class="empty-queue">选择下方招式</li></ol></div>
       </div>
 
@@ -67,7 +67,7 @@ root.innerHTML = `
       <div class="cards" id="cards"></div>
       <div class="desk-actions"><button id="skip" data-testid="skip" class="text-button" disabled>跳过 <kbd>空格</kbd></button><button id="submit" data-testid="submit" class="submit-button" disabled><span>执行出牌</span><b>↗</b><kbd>ENTER</kbd></button></div>
     </footer>
-    <div class="footer-note"><span>观察前摇 · 保留 2 点行动点用于反击</span><span id="controls-help"><kbd>1–4</kbd> 出牌 <kbd>回车</kbd> 继续 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开</span></div>
+    <div class="footer-note"><span>回合结束恢复自己的 AP · 反击消耗影响下回合</span><span id="controls-help"><kbd>1–4</kbd> 出牌 <kbd>回车</kbd> 继续 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开</span></div>
   </main>`;
 
 const $ = <T extends HTMLElement>(selector: string) => {
@@ -89,7 +89,7 @@ let lastOutcomeLine = '';
 const heldKeys = new Set<string>();
 const STEP = 1 / 60;
 const MAX_STEPS = 6;
-const labels: Record<string, string> = { ready: '准备就绪', telegraph: '敌方前摇', planning: '选择出牌', acting: '招式演出', counter: '反击时机', resolve: '攻击结算', victory: '胜利', defeat: '失败' };
+const labels: Record<string, string> = { ready: '准备就绪', telegraph: '敌方前摇', planning: '选择出牌', acting: '招式演出', counter: '反击时机', resolve: '攻击结算', 'turn-end': '回合结束', victory: '胜利', defeat: '失败' };
 const ids: CardId[] = ['quick', 'heavy', 'guard', 'counter'];
 const cardIcons: Record<CardId, string> = {
   quick: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 36 34 13m-5 1 5-1-1 5M9 29l10 10m-5-14 10 10M30 10l8 8"/><path d="m8 40 4-1-3-3z"/></svg>',
@@ -156,7 +156,7 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   const qte = snapshot.controlMode === 'qte';
   app.dataset.controlMode = snapshot.controlMode;
 
-  const hudKey = [snapshot.controlMode, snapshot.phase, snapshot.round, snapshot.playerHp, snapshot.enemyHp,
+  const hudKey = [snapshot.controlMode, snapshot.phase, snapshot.activeSide, snapshot.enemyAp, snapshot.round, snapshot.playerHp, snapshot.enemyHp,
     snapshot.ap, snapshot.remaining.toFixed(1), snapshot.queue.join(','),
     snapshot.committed.join(','), snapshot.activeCard, snapshot.paused,
     snapshot.log.join('|')].join(';');
@@ -169,18 +169,21 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#enemy-bar').style.width = `${Math.max(0, snapshot.enemyHp / enemyMax * 100)}%`;
   $('#ap').textContent = String(snapshot.ap); $('#ap-max').textContent = String(snapshot.maxAp);
   $('#round').textContent = String(snapshot.round).padStart(2, '0'); $('#round-rail').textContent = String(snapshot.round).padStart(2, '0');
-  $('#phase').textContent = qte && snapshot.phase === 'planning' ? '选择应对招式' : labels[snapshot.phase] ?? snapshot.phase.toUpperCase();
+  $('#phase').textContent = snapshot.phase === 'planning' ? '玩家选牌' : labels[snapshot.phase] ?? snapshot.phase.toUpperCase();
   $('#control-mode').textContent = qte ? '演出式出牌' : '序列出牌';
   $('#control-mode').toggleAttribute('disabled', !['ready', 'victory', 'defeat'].includes(snapshot.phase) || snapshot.paused);
-  $('#sequence-label').textContent = qte ? '下一步应对' : '你的出牌序列';
+  $('#sequence-label').textContent = snapshot.activeSide === 'enemy' ? '敌方出牌' : qte ? '玩家出牌' : '你的出牌序列';
   $('#desk-hint').textContent = qte ? '点击按钮或按 1–4 立即出牌' : '选牌时预留行动点';
   $('#controls-help').innerHTML = qte ? '<kbd>1–4</kbd> 出牌 <kbd>回车</kbd> 继续 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开' : '<kbd>1–4</kbd> 选牌 <kbd>回车</kbd> 执行 <kbd>空格</kbd> 跳过 <kbd>R</kbd> 重开';
-  if (snapshot.phase === 'ready') $('#overlay-copy').textContent = qte ? '观察敌人的前摇，按下招式立即出牌。保留 2 点行动点用于反击。' : '观察前摇，将招式加入序列后执行。';
+  if (snapshot.phase === 'ready') $('#overlay-copy').textContent = qte ? '在自己的回合出牌。结束回合恢复自己的行动点，敌人出牌时可反击。' : '在自己的回合选择招式序列。敌人出牌时可选择反击。';
   $('#phase').dataset.phase = snapshot.phase;
+  $('#phase').dataset.side = snapshot.activeSide;
+  $('#turn-owner').textContent = snapshot.phase === 'ready' ? '准备就绪' : snapshot.activeSide === 'player' ? '玩家回合' : '敌人回合';
+  $('#enemy-ap').textContent = String(snapshot.enemyAp);
   $('#phase-copy').textContent = snapshot.paused ? '离开页面，已暂停' : phaseCopy(snapshot);
-  $('#timer').textContent = snapshot.remaining > 0 ? snapshot.remaining.toFixed(1) : snapshot.phase === 'ready' ? '—' : '0.0';
+  $('#timer').textContent = snapshot.remaining > 0 ? snapshot.remaining.toFixed(1) : snapshot.phase === 'ready' || (snapshot.phase === 'planning' && snapshot.playerTurnSeconds === 0) ? '—' : '0.0';
   $('#timer').classList.toggle('timer-urgent', snapshot.remaining > 0 && snapshot.remaining < 1.25);
-  const windowLength = snapshot.phase === 'planning' ? 4 : snapshot.phase === 'counter' ? 2 : snapshot.phase === 'telegraph' ? (snapshot.enemyAttack === 'heavy' ? 1.6 : 1.1) : 0;
+  const windowLength = snapshot.phase === 'planning' ? snapshot.playerTurnSeconds : snapshot.phase === 'counter' ? 2 : snapshot.phase === 'telegraph' ? (snapshot.enemyAttack === 'heavy' ? 1.6 : 1.1) : 0;
   const timerProgress = windowLength > 0 ? Math.max(0, Math.min(1, snapshot.remaining / windowLength)) : 0;
   $('#timer-progress').style.transform = `scaleX(${timerProgress})`;
   $('#stage-status').dataset.phase = snapshot.phase;
@@ -189,12 +192,12 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   $('#intent-detail').textContent = snapshot.phase === 'ready' ? '进入竞技场开始战斗' : snapshot.phase === 'victory' || snapshot.phase === 'defeat' ? '对决已结束' : `${snapshot.enemyDamage} 点伤害 · ${snapshot.enemyAttack === 'heavy' ? '范围大，前摇较慢' : '快速轻击'}`;
   $('#intent-card').classList.toggle('intent-heavy', snapshot.enemyAttack === 'heavy' && snapshot.phase !== 'ready');
   const threatCard = $('#counter-threat-card');
-  const counterThreatVisible = snapshot.phase === 'counter' || snapshot.phase === 'resolve';
+  const counterThreatVisible = snapshot.pendingEnemyCard !== null;
   threatCard.classList.toggle('threat-card-visible', counterThreatVisible);
   threatCard.classList.toggle('threat-card-heavy', snapshot.enemyAttack === 'heavy');
   threatCard.setAttribute('aria-hidden', String(!counterThreatVisible));
   $('#threat-card-number').textContent = snapshot.enemyAttack === 'heavy' ? '02' : '01';
-  $('#threat-card-name').textContent = snapshot.enemyAttack === 'heavy' ? '重攻击' : '轻攻击';
+  $('#threat-card-name').textContent = snapshot.pendingEnemyCard?.name ?? (snapshot.enemyAttack === 'heavy' ? '重攻击' : '轻攻击');
   $('#threat-card-damage').textContent = `${snapshot.enemyDamage} 点伤害`;
   const reservedAp = snapshot.queue.reduce((sum, id) => sum + (CARDS.find((card) => card.id === id)?.cost ?? 0), 0);
   const availableAp = Math.max(0, snapshot.ap - reservedAp);
@@ -206,7 +209,7 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   const queue = $('#queue'); queue.replaceChildren();
   if (qte) {
     const li = document.createElement('li'); li.className = 'qte-response';
-    li.textContent = snapshot.paused ? '已暂停 · 返回后继续' : snapshot.phase === 'planning' ? '1 快斩 · 2 重斩 · 3 格挡 · 回车结束选牌' : snapshot.phase === 'counter' ? '4 立即反击 · 空格放弃反击' : snapshot.phase === 'acting' ? `${(snapshot.activeCard ? CARD_NAMES[snapshot.activeCard] : '招式')}演出中` : snapshot.phase === 'telegraph' ? '观察敌人的前摇…' : '观看对决';
+    li.textContent = snapshot.paused ? '已暂停 · 返回后继续' : snapshot.phase === 'planning' ? '1 快斩 · 2 重斩 · 3 格挡 · 回车结束回合' : snapshot.phase === 'counter' ? '4 立即反击 · 空格放弃反击' : snapshot.phase === 'acting' ? `${(snapshot.activeCard ? CARD_NAMES[snapshot.activeCard] : '招式')}演出中` : snapshot.phase === 'telegraph' ? '敌人已出牌，准备反击…' : snapshot.phase === 'turn-end' ? '只恢复当前行动方 AP' : '观看对决';
     queue.append(li);
   } else if (!snapshot.queue.length) queue.innerHTML = '<li class="empty-queue">你的出牌将在此显示</li>';
   else snapshot.queue.forEach((id, i) => { const card = CARDS.find((item) => item.id === id)!; const li = document.createElement('li'); li.innerHTML = `<span class="queue-order">0${i + 1}</span><b>${CARD_NAMES[card.id]}</b><span class="queue-cost">${card.cost} 点</span>`; queue.append(li); });
@@ -261,7 +264,7 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   }
   const planning = snapshot.phase === 'planning' || snapshot.phase === 'counter';
   $('#submit').toggleAttribute('disabled', !planning || snapshot.paused);
-  $('#submit span').textContent = qte ? (snapshot.phase === 'counter' ? '放弃反击' : '结束选牌') : snapshot.queue.length ? '执行出牌' : snapshot.phase === 'counter' ? '放弃反击' : '继续';
+  $('#submit span').textContent = qte ? (snapshot.phase === 'counter' ? '放弃反击' : '结束回合') : snapshot.queue.length ? '执行出牌' : snapshot.phase === 'counter' ? '放弃反击' : '结束回合';
   $('#skip').toggleAttribute('disabled', !planning || snapshot.paused);
   $('#pause-banner').toggleAttribute('hidden', !snapshot.paused);
   $('.scene-frame').classList.toggle('is-paused', snapshot.paused);
@@ -269,8 +272,9 @@ function render(snapshot: CombatSnapshot, realSeconds = 0) {
   drawArena(snapshot, realSeconds);
 }
 function phaseCopy(s: CombatSnapshot): string {
+  if (s.phase === 'turn-end') return s.activeSide === 'player' ? '玩家 AP 恢复后交给敌人' : '仅敌方 AP 恢复，玩家 AP 不变';
   if (s.phase === 'telegraph') return '观察敌人的前摇';
-  if (s.phase === 'planning') return s.controlMode === 'qte' ? '慢动作 · 按下招式出牌' : '慢动作 · 选择出牌序列';
+  if (s.phase === 'planning') return s.controlMode === 'qte' ? '玩家回合 · 按下招式出牌' : '玩家回合 · 选择出牌序列';
   if (s.phase === 'acting') return s.activeCard ? `${(s.activeCard ? CARD_NAMES[s.activeCard] : '招式')}演出中` : '正在结算招式';
   if (s.phase === 'counter') return '慢动作 · 选择反击或依靠格挡';
   if (s.phase === 'resolve') return s.guard ? '格挡抵御攻击' : '正在结算伤害';
@@ -289,7 +293,7 @@ function recentOutcome(snapshot: CombatSnapshot): string {
   if (line.includes('Counter cancels') || line.includes('Incoming attack cancelled')) return '反击成功 · 敌方攻击已取消';
   const guarded = line.match(/(\d+) damage guarded/);
   if (guarded) {
-    const nextRound = log.findIndex((entry, index) => index > eventIndex && entry.startsWith('Round '));
+    const nextRound = log.findIndex((entry, index) => index > eventIndex && entry.startsWith('玩家回合 '));
     const resolutionEnd = nextRound < 0 ? log.length : nextRound;
     const damageLine = log.slice(eventIndex + 1, resolutionEnd).find((entry) => /^Enemy attack deals \d+ damage to the player/.test(entry));
     const taken = Number(damageLine?.match(/deals (\d+) damage/)?.[1] ?? 0);

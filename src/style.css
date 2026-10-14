@@ -353,3 +353,12 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .overlay p { font-size: 13px; }
   button, summary { touch-action: manipulation; }
 }
+
+.enemy-ap-readout { margin-left: auto; color: var(--rust); font-size: 11px; white-space: nowrap; }
+@media (max-width: 600px) and (orientation: portrait) {
+  .reserved-readout { display: none; }
+  .enemy-ap-readout { margin-left: 6px; }
+  .footer-note span:first-child { font-size: 9px; }
+}
+.card-cost small { white-space: nowrap; }
+.queue-count { width: auto; min-width: 24px; padding: 0 3px; border-radius: 3px; white-space: nowrap; }

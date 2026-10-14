@@ -135,6 +135,7 @@ export class CameraDirector {
         return 'quick-strike';
       case 'counter': return 'counter-window';
       case 'resolve': return 'enemy-strike';
+      case 'turn-end': return snapshot.activeSide === 'player' ? 'decision' : 'overview';
       case 'victory': return 'victory';
       case 'defeat': return 'defeat';
     }
