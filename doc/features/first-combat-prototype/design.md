@@ -1,6 +1,8 @@
 # First Combat Prototype — Technical Design
 
-Status: ready. Track: Full. Owner: lead. Updated: 2026-10-12.
+Status: historical implemented design. Track: Full. Owner: lead. Updated: 2026-10-12.
+
+The 2026-10-14 [turn-based design correction](../cinematic-qte/design.md#turn-based-combat-contract) supersedes this document's enemy-attack/Response sequence for future development. Enemy turns have no ordinary Response phase; damage cards trigger a Counter check before resolution, and AP recovery belongs to turn end. That correction is design-only and is not yet implemented. The details below remain a record of the existing prototype.
 Upstream: [PRD](../../prd/first-combat-prototype.md).
 
 ## Contract and acceptance map
