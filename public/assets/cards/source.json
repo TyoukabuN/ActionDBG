@@ -1,0 +1,39 @@
+{
+  "kind": "generated-original-artwork",
+  "created": "2026-10-15",
+  "generator": "OpenAI image generation tool",
+  "purpose": "ActionDBG 招式卡牌插画；费用、牌名与规则由 HTML 单独呈现。",
+  "third_party_game_assets": false,
+  "license_note": "本项目生成的原创插画，不冒称第三方 CC0 资源，不包含《杀戮尖塔》原画或卡框。",
+  "source_dimensions": [
+    1254,
+    1254
+  ],
+  "processing": "将四格图按中心线等分为四张 627×627 插画，以 WebP quality=86/method=6 编码；未重绘内容。",
+  "panel_order": [
+    "quick",
+    "heavy",
+    "guard",
+    "counter"
+  ],
+  "prompt": "Create an original fantasy card-game illustration atlas: a perfectly regular 2-by-2 grid of FOUR square paintings with no gutters, each panel exactly the same size. NO text, NO letters, NO numbers, NO card borders or UI. A cohesive hand-painted graphic fantasy style, bold angular silhouettes, expressive brush strokes, dramatic rim lighting, legible at thumbnail size, adventure game art. All four panels depict the SAME stylized faceless armored knight with silver helmet, red cape, dark teal tabard and steel sword and round shield, in a dark ruined stone arena. TOP LEFT: a swift sword cut, bright ivory diagonal slash cutting across teal shadows, dynamic horizontal movement. TOP RIGHT: a powerful two-handed overhead sword strike, amber and crimson impact burst, heavy explosive motion. BOTTOM LEFT: close-up of a round steel shield raised in defense, cool teal light, white metallic sparks ricocheting from the rim, protective solid silhouette. BOTTOM RIGHT: knight catching an incoming enemy blade with his sword then riposting, two crossed blades and a brilliant gold spark at their crossing, turquoise slowed-time arcs. Compose each panel with its important action in its central 75%, keep the scenes visually distinct, emphasize the sword slash/impact/shield/crossed blades respectively. Rich painterly texture, polished indie deckbuilder illustration quality, original artwork, not from any existing game. Output the full 2x2 grid as one square image.",
+  "source_sha256": "e4be630ac938f00be877e263d9c05221638255441858c61ffa4708d309509e33",
+  "files": {
+    "counter.webp": {
+      "bytes": 107158,
+      "sha256": "7dca39292660b7c3c8ec7c893ef4dad46e430c25a0027c948de3eb23a12ddf8a"
+    },
+    "guard.webp": {
+      "bytes": 83478,
+      "sha256": "22eeed1a88479e3728d7b221aa58c507a83536c0eedf09b8a41a8bf959f184ae"
+    },
+    "heavy.webp": {
+      "bytes": 116280,
+      "sha256": "5521f90d60362925b590195a154c72d6b9d906dbbf5c4ae749d09d0aebc06006"
+    },
+    "quick.webp": {
+      "bytes": 105490,
+      "sha256": "ecd9641bad82bcec1e0eed29a371dcb775cd7e17efa6368e43c2bcfa52b5ed5c"
+    }
+  }
+}

@@ -64,7 +64,7 @@ root.innerHTML = `
     </section>
 
     <footer class="card-desk">
-      <div class="desk-label"><div><span class="eyebrow">选择招式</span><small id="desk-hint">点击按钮或按 1–4 立即出牌</small></div><span class="round-number" id="round-rail">01</span></div>
+      <div class="desk-label"><div><span class="eyebrow">选择招式</span><small id="desk-hint">点击按钮或按 1–4 立即出牌</small><span class="mobile-hand-hint">左右滑动查看手牌</span></div><span class="round-number" id="round-rail">01</span></div>
       <div class="cards" id="cards"></div>
       <div class="desk-actions"><button id="skip" data-testid="skip" class="text-button" disabled>跳过 <kbd>空格</kbd></button><button id="submit" data-testid="submit" class="submit-button" disabled><span>执行出牌</span><b>↗</b><kbd>ENTER</kbd></button></div>
     </footer>
@@ -98,6 +98,7 @@ const cardIcons: Record<CardId, string> = {
   guard: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="m24 7 14 6v10c0 9-5.5 15-14 19-8.5-4-14-10-14-19V13z"/><path d="m17 24 5 5 10-11"/></svg>',
   counter: '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M12 18a15 15 0 1 1-1 12M12 18v-8m0 8h8m5 1v11l8 5"/><path d="m34 12 4 4-4 4"/></svg>',
 };
+const cardTypes: Record<CardId, string> = { quick: '攻击', heavy: '攻击', guard: '防御', counter: '反击' };
 
 const cardHost = $('#cards');
 for (const card of CARDS) {
@@ -107,8 +108,11 @@ for (const card of CARDS) {
   button.id = `card-${card.id}`;
   button.dataset.testid = `card-${card.id}`;
   button.type = 'button';
-  button.setAttribute('aria-label', `${index + 1}. ${CARD_NAMES[card.id]}, 消耗 ${card.cost} 点行动点。 ${CARD_DESCRIPTIONS[card.id]}`);
-  button.innerHTML = `<span class="card-top"><span class="card-index">${index + 1}</span><span class="card-cost"><b>${card.cost}</b><small>行动点</small></span></span><span class="card-art ${card.id}-art">${cardIcons[card.id]}</span><span class="card-name">${CARD_NAMES[card.id]}</span><span class="card-desc">${CARD_DESCRIPTIONS[card.id]}</span><span class="card-status" id="status-${card.id}">可用</span>`;
+  button.setAttribute('aria-label', `${index + 1}. ${CARD_NAMES[card.id]}，${cardTypes[card.id]}，消耗 ${card.cost} 点行动点。${CARD_DESCRIPTIONS[card.id]}`);
+  button.setAttribute('aria-describedby', `status-${card.id}`);
+  button.innerHTML = `<span class="card-top"><span class="card-cost"><b>${card.cost}</b></span></span><span class="card-name">${CARD_NAMES[card.id]}</span><span class="card-art ${card.id}-art" aria-hidden="true"><span class="card-icon">${cardIcons[card.id]}</span><img src="${import.meta.env.BASE_URL}assets/cards/${card.id}.webp" alt="" decoding="async"></span><span class="card-type">${cardTypes[card.id]}</span><span class="card-desc" id="desc-${card.id}">${CARD_DESCRIPTIONS[card.id]}</span><span class="card-footer"><span class="card-status" id="status-${card.id}">可用</span><span class="card-index"><kbd>${index + 1}</kbd></span></span>`;
+  const cardImage = button.querySelector('img');
+  cardImage?.addEventListener('error', () => cardImage.classList.add('art-failed'), { once: true });
   button.addEventListener('click', () => activateCard(card.id), { signal: inputEvents.signal });
   cardHost.append(button);
 }

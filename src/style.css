@@ -30,7 +30,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .icon-button:hover { border-color: #cdb78b; background: #ffffff0b; }
 .reset-icon { font: 17px Arial, sans-serif; color: var(--gold); }
 .arena-layout { display: flex; flex: 1; min-height: 0; flex-direction: column; gap: 8px; padding: 12px 0 5px; }
-.scene-frame { position: relative; flex: 1 1 auto; min-height: 380px; overflow: hidden; border: 1px solid #b89a7163; border-radius: 3px; background: #263536; box-shadow: 0 20px 54px #0003, inset 0 0 0 4px #ffffff08; }
+.scene-frame { position: relative; flex: 1 1 auto; min-height: 320px; overflow: hidden; border: 1px solid #b89a7163; border-radius: 3px; background: #263536; box-shadow: 0 20px 54px #0003, inset 0 0 0 4px #ffffff08; }
 .scene-frame canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 .scene-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, #14232651 0, transparent 28%, transparent 63%, #182323ad 100%), linear-gradient(90deg, #14242631, transparent 24%, transparent 76%, #14242631); }
 .scene-topline { position: absolute; top: 14px; left: 17px; right: 17px; display: flex; align-items: center; gap: 8px; color: #e4ded0; text-shadow: 0 1px 8px #111; font: 9px var(--mono); letter-spacing: .13em; }
@@ -150,40 +150,60 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .combat-log { display: flex; flex-direction: column; gap: 3px; }
 .combat-log p { margin: 0; color: #98a39a; font-size: 10px; line-height: 1.4; }
 .combat-log .log-latest { color: #d3cebf; }
-.card-desk { display: grid; flex: none; grid-template-columns: repeat(4, minmax(0, 1fr)) 170px; align-items: stretch; gap: 8px; padding: 9px 0 6px; }
+/* Collectible cards use forged bronze, stained enamel, and a readable paper rules field. */
+.card-desk { display: grid; flex: none; grid-template-columns: minmax(0, 1fr) 170px; align-items: end; gap: 8px 14px; padding: 9px 0 6px; }
 .desk-label { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; min-height: 22px; }
+.desk-label > div { display: flex; align-items: baseline; gap: 9px; }
 .desk-label .eyebrow { color: #d1bd92; font: 8px var(--mono); letter-spacing: .13em; }
-.desk-label small { margin-left: 8px; color: #859188; font-size: 9px; }
+.desk-label small { color: #aeb6a9; font-size: 10px; }
+.mobile-hand-hint { display: none; color: #d7c39d; font-size: 10px; }
 .round-number { color: #b6a17c; font: 10px var(--mono); font-variant-numeric: tabular-nums; }
-.cards { display: contents; }
-.card { position: relative; display: flex; min-width: 0; min-height: 128px; flex-direction: column; overflow: hidden; padding: 7px 9px 6px; border: 1px solid #8c9a8c38; border-radius: 2px; background: linear-gradient(145deg, #293938, #1b292a); text-align: left; cursor: pointer; transition: transform .15s, border-color .15s, background .15s; }
-.card:hover:not(:disabled) { transform: translateY(-2px); border-color: #c4af827d; background: #2b3c3b; }
+.cards { display: grid; width: min(100%, 760px); min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); justify-self: center; gap: clamp(6px, 1.1vw, 14px); }
+.card { --frame: #a98a58; --enamel: #35413c; position: relative; isolation: isolate; display: grid; width: 100%; height: 240px; min-width: 0; grid-template-rows: 26px 104px 16px minmax(48px, 1fr) 30px; gap: 1.5px; overflow: hidden; padding: 3px 6px; border: 2px solid var(--frame); border-radius: 7px; background: linear-gradient(145deg, #ddcda8, #bba77e 53%, #867653); box-shadow: inset 0 0 0 1px #f3dfb66e, 0 7px 16px #060d0db0; color: #172628; text-align: left; cursor: pointer; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.card::before { position: absolute; z-index: -1; inset: 4px; border: 1px solid #463b294d; border-radius: 3px; content: ""; pointer-events: none; }
+.card::after { position: absolute; z-index: -1; top: 0; left: 14px; right: 14px; height: 2px; background: #f0d7a1; content: ""; opacity: .72; }
+.card-quick, .card-heavy { --frame: #9b6547; --enamel: #60372f; }
+.card-heavy { --frame: #a94936; --enamel: #492c2a; }
+.card-guard { --frame: #628f7d; --enamel: #28564f; }
+.card-counter { --frame: #718da1; --enamel: #314d63; }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover:not(:disabled) { transform: translateY(-3px); box-shadow: inset 0 0 0 1px #f3dfb66e, 0 12px 22px #060d0dd1; }
+}
+.card:active:not(:disabled) { transform: translateY(-1px); }
+.card:focus-visible { outline: 3px solid #f2d39c; outline-offset: 3px; }
 .card:disabled { cursor: not-allowed; }
-.card-unavailable { opacity: .57; filter: saturate(.6); }
-.card-selected { border-color: #65c7b4; background: linear-gradient(145deg, #294542, #1e3434); box-shadow: inset 0 0 0 1px #65c7b428; }
-.card-top { display: flex; align-items: center; justify-content: space-between; }
-.card-index { color: #8b9990; font: 9px var(--mono); }
-.card-cost { display: flex; align-items: center; gap: 4px; color: #e2c493; }
-.card-cost b { font: 600 19px var(--serif); font-variant-numeric: tabular-nums; }
-.card-cost small { color: #b6b39f; font: 8px var(--mono); }
-.card-art { position: absolute; top: 21px; right: 10px; width: 38px; height: 34px; display: grid; place-items: center; opacity: .85; }
-.card-art svg { width: 34px; height: 34px; overflow: visible; fill: none; stroke: #75cbbb; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.6; }
-.heavy-art svg { stroke: #eb9272; }
-.guard-art svg { stroke: #ddc18b; }
-.counter-art svg { stroke: #a8bfd0; }
-.card-name { margin-top: 8px; color: #efe6d7; font: 600 14px var(--serif); }
-.card-desc { max-width: 90%; margin-top: 4px; color: #adb6ac; font-size: 10px; line-height: 1.3; }
-.card-status { min-height: 20px; margin-top: auto; padding-top: 5px; color: #75c5b4; font: 9px Arial, sans-serif; line-height: 1.25; overflow-wrap: anywhere; }
-.card-unavailable .card-status { color: #d29a81; }
-.desk-actions { grid-column: 5; grid-row: 2; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 7px; }
-.text-button { display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; background: transparent; color: #b2bbb1; font-size: 10px; cursor: pointer; }
-.text-button:disabled { opacity: .34; cursor: default; }
-.submit-button { min-width: 0; gap: 8px; padding: 10px 11px; font-size: 10px; }
-.submit-button:disabled { cursor: default; opacity: .4; filter: saturate(.5); }
+.card-unavailable { filter: saturate(.72); }
+.card-selected { border-color: #62bba7; box-shadow: inset 0 0 0 2px #234f47, 0 0 0 2px #62bba780, 0 8px 17px #060d0db0; }
+.card-top { position: absolute; z-index: 3; inset: 0; pointer-events: none; }
+.card-cost { position: absolute; top: 2px; left: 2px; display: grid; width: 31px; height: 31px; place-items: center; border: 2px solid #dbc18a; border-radius: 50%; background: radial-gradient(circle at 36% 30%, #f5dca5, #9b7140 70%, #68472e); box-shadow: 0 2px 4px #09110e99, inset 0 0 0 1px #62472b; color: #201e19; }
+.card-cost b { font: 700 18px/1 Georgia, "Times New Roman", serif; font-variant-numeric: tabular-nums; text-shadow: 0 1px #f7e6bb; }
+.card-footer { display: flex; min-width: 0; min-height: 30px; align-items: center; gap: 4px; border-top: 1px solid #5f523b8c; }
+.card-index { flex: none; margin-left: auto; }
+.card-index kbd { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid #544c3b88; border-radius: 3px; background: #dfd0ae; color: #3d4138; font: 600 11px var(--mono); }
+.card-name { display: grid; min-height: 26px; place-items: center; margin: 0 -6px; padding: 2px 32px 2px; border-bottom: 1px solid #b89b6f; background: linear-gradient(90deg, #172628, var(--enamel) 45%, #172628); color: #f0dfbd; font: 700 16px/1.15 "Songti SC", SimSun, "Noto Serif CJK SC", serif; text-align: center; text-shadow: 0 1px #081111; }
+.card-art { position: relative; display: grid; width: 100%; height: 104px; flex: none; place-items: center; overflow: hidden; border: 2px solid #574a38; border-radius: 2px; background: radial-gradient(ellipse at 50% 30%, color-mix(in srgb, var(--enamel) 82%, #c7a873), #1b2827 92%); box-shadow: inset 0 0 0 1px #e5d0a147; }
+.card-art::after { position: absolute; inset: 0; border: 1px solid #d8c79a55; content: ""; pointer-events: none; }
+.card-art img { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.card-icon { position: absolute; display: grid; width: 100%; height: 100%; place-items: center; }
+.card-art svg { width: 45px; height: 45px; fill: none; stroke: #c6b184; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; filter: drop-shadow(0 1px 3px #0b1111); }
+.heavy-art svg { stroke: #f0a47e; }
+.guard-art svg { stroke: #a4d0b8; }
+.counter-art svg { stroke: #b5d3e3; }
+.card-art img.art-failed { display: none; }
+.card-type { display: flex; min-height: 16px; align-items: center; justify-content: center; margin: 0 -3px; border-top: 1px solid #65563c; border-bottom: 1px solid #65563c; background: linear-gradient(90deg, transparent, #8a79573b 18% 82%, transparent); color: #443b2c; font: 600 10px/1 Arial, sans-serif; letter-spacing: .16em; }
+.card-desc { min-height: 48px; overflow-wrap: anywhere; color: #30332b; font: 600 12px/1.32 Arial, "Microsoft YaHei", sans-serif; }
+.card-status { display: flex; min-width: 0; min-height: 30px; flex: 1 1 auto; align-items: center; padding: 2px 0; color: #285b4d; font: 600 11px/1.15 Arial, "Microsoft YaHei", sans-serif; overflow-wrap: anywhere; }
+.card-unavailable .card-status { color: #812f26; }
+.card-selected .card-status, .card-playing .card-status { color: #185b4d; }
+.desk-actions { display: flex; min-height: 44px; flex-direction: column; align-items: stretch; justify-content: flex-end; gap: 7px; }
+.text-button { display: flex; min-height: 34px; align-items: center; justify-content: center; gap: 8px; border: 0; background: transparent; color: #c3c9bc; font-size: 11px; cursor: pointer; }
+.text-button:disabled { opacity: .48; cursor: default; }
+.submit-button { min-width: 0; min-height: 44px; gap: 8px; padding: 10px 11px; font-size: 11px; }
+.submit-button:disabled { cursor: default; opacity: .55; filter: saturate(.6); }
 .submit-button kbd { margin-left: auto; border-color: #25332c66; color: #46534b; }
-.footer-note { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; min-height: 19px; padding-top: 5px; color: #829087; font: 8px var(--mono); letter-spacing: .02em; }
-.footer-note span:first-child { color: #a79b7f; }
-.footer-note kbd { padding: 1px 3px; color: #a1a79b; }
+.footer-note { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; min-height: 19px; padding-top: 5px; color: #a0aaa0; font: 8px var(--mono); letter-spacing: .02em; }
+.footer-note span:first-child { color: #c4b48e; }
+.footer-note kbd { padding: 1px 3px; color: #b4bbae; }
 .webgl-error[hidden], .pause-banner[hidden] { display: none; }
 @keyframes pulse { 50% { opacity: .52; } }
 @keyframes outcome-in { from { transform: translateY(3px); opacity: .3; } to { transform: translateY(0); opacity: 1; } }
@@ -201,18 +221,13 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .intent-card { padding: 9px 14px; }
   .stage-status { bottom: 20px; }
   .combat-strip { min-height: 62px; }
-  .card { min-height: 142px; padding: 9px 12px; }
-  .card-name { font-size: 15px; }
-  .card-art { top: 25px; right: 14px; width: 42px; height: 40px; }
-  .card-art svg { width: 38px; height: 38px; }
 }
 @media (max-width: 1050px) {
   .game-shell { padding-right: 22px; padding-left: 22px; }
   .combat-strip { grid-template-columns: minmax(215px, .75fr) minmax(0, 1.25fr); gap: 10px; }
   .queue-cluster { grid-template-columns: 91px minmax(0, 1fr); gap: 5px; }
-  .card-desk { grid-template-columns: repeat(4, minmax(0, 1fr)) 145px; gap: 6px; }
-  .card { padding-right: 7px; padding-left: 7px; }
-  .card-status { font-size: 8px; }
+  .card { grid-template-rows: 26px 90px 16px minmax(58px, 1fr) 30px; }
+  .card-art { height: 90px; }
   .fighters-hud { grid-template-columns: minmax(150px, 1fr) minmax(130px, .62fr) minmax(150px, 1fr); }
 }
 @media (max-width: 760px) {
@@ -243,10 +258,17 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .queue-title { font-size: 7px; }
   .queue-list { min-height: 24px; }
   .history-content { grid-template-columns: 1fr; gap: 12px; }
-  .card-desk { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  .desk-label { grid-column: 1 / -1; }
-  .desk-actions { grid-column: 1 / -1; grid-row: auto; flex-direction: row; justify-content: flex-end; }
-  .card { min-height: 121px; }
+  .card-desk { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; padding: 4px 0; }
+  .desk-label { min-height: 25px; }
+  .desk-label .eyebrow { font-size: 11px; letter-spacing: 0; }
+  .desk-label small { display: none; }
+  .mobile-hand-hint { display: inline; }
+  .cards { width: 100%; grid-template-columns: repeat(4, 148px); justify-self: stretch; gap: 8px; overflow-x: auto; overscroll-behavior-x: contain; padding: 6px 6px 10px; scroll-padding-inline: 6px; scroll-snap-type: x mandatory; scrollbar-width: thin; scrollbar-color: #a98a58 #172323; }
+  .card { height: 236px; min-height: 236px; grid-template-rows: 26px 90px 16px minmax(50px, 1fr) 30px; gap: 1.5px; scroll-snap-align: start; }
+  .card-art { height: 90px; }
+  .card-desc { min-height: 50px; font-size: 12px; line-height: 1.2; }
+  .card-status { min-height: 30px; font-size: 10px; }
+  .desk-actions { display: flex; flex-direction: row; justify-content: flex-end; gap: 6px; }
   .footer-note { flex-wrap: wrap; font-size: 7px; }
 }
 @media (max-width: 420px) {
@@ -264,10 +286,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .timer-readout { min-width: 100px; }
   .queue-cluster { grid-template-columns: 90px minmax(0, 1fr); }
   .queue-list { overflow-x: auto; }
-  .card { min-height: 116px; padding: 6px; }
-  .card-name { font-size: 12px; }
-  .card-desc { font-size: 9px; }
-  .card-status { font-size: 8px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
@@ -282,11 +300,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .shot-name { margin-left: 12px; color: #d6bd91; font-size: 8px; }
 .qte-response { color: #d6decf; font-size: 12px; line-height: 1.35; }
 #app[data-control-mode="qte"] .queue-cluster { grid-template-columns: 108px minmax(0, 1fr); }
-#app[data-control-mode="qte"] .card-index { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid #b5c5b273; border-radius: 5px; color: #e7ebdf; font: 600 14px var(--mono); }
-#app[data-control-mode="qte"] .qte-available { border-color: #71c8b783; box-shadow: inset 0 -3px #71c8b73b; }
-#app[data-control-mode="qte"] .qte-available:hover { border-color: #d9c594; }
-#app[data-control-mode="qte"] .card-status { font-size: 10px; min-height: 24px; }
-#app[data-control-mode="qte"] .card-playing { opacity: 1; border-color: #e0be84; box-shadow: inset 0 0 0 1px #e0be8440; }
+#app[data-control-mode="qte"] .qte-available:not(.card-selected):not(.card-playing) { border-color: #71a894; }
+#app[data-control-mode="qte"] .card-playing { border-color: #e0be84; box-shadow: inset 0 0 0 2px #5c4a2e, 0 0 0 2px #e0be8480, 0 8px 17px #060d0db0; }
 #app[data-control-mode="qte"] .reserved-readout { color: #9aa99f; }
 @media (max-width: 760px) {
   .arena-name { display: none; }
@@ -295,7 +310,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .qte-response { font-size: 10px; }
 }
 
-/* Portrait touch play keeps the arena and all four actions within one screen. */
+/* Portrait touch play keeps the arena, scrolling hand, and turn controls reachable. */
 @media (max-width: 600px) and (orientation: portrait) {
   body { min-width: 320px; }
   .game-shell { min-height: 100svh; padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); }
@@ -303,7 +318,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .brand { letter-spacing: .04em; gap: 5px; }
   .icon-button { min-height: 44px; font-size: 11px; padding: 6px 8px; letter-spacing: 0; }
   .arena-layout { flex: none; gap: 4px; padding: 6px 0 0; }
-  .scene-frame { height: clamp(290px, calc(100svh - 520px), 560px); min-height: 290px; }
+  .scene-frame { height: clamp(290px, calc(100svh - 544px), 560px); min-height: 290px; }
   .scene-topline { top: 7px; left: 8px; right: 8px; letter-spacing: 0; }
   .fighters-hud { top: 34px; left: 6px; right: 6px; gap: 5px; }
   .fighter-card { padding: 5px 7px; }
@@ -331,19 +346,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .queue-count { display: none; }
   .history-panel { order: 3; }
   .history-panel summary { min-height: 44px; }
-  .card-desk { padding: 4px 0; gap: 5px; }
-  .desk-label { min-height: 24px; }
-  .desk-label .eyebrow { font-size: 11px; letter-spacing: 0; }
-  .desk-label small { font-size: 10px; margin-left: 5px; }
-  .card { min-height: 94px; padding: 5px 8px; }
-  .card-name { font-size: 16px; margin-top: 1px; }
-  .card-desc { font-size: 11px; max-width: 100%; line-height: 1.4; }
-  .card-art { top: 6px; right: 50px; width: 24px; height: 24px; }
-  .card-art svg { width: 24px; height: 24px; }
-  .card-cost b { font-size: 16px; }
-  .card-cost small { font-size: 9px; }
-  #app[data-control-mode="qte"] .card-index { width: 20px; height: 20px; font-size: 11px; }
-  #app[data-control-mode="qte"] .card-status { min-height: 18px; font-size: 10px; padding-top: 2px; }
   .desk-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 6px; }
   .text-button, .submit-button, .primary-button { min-height: 44px; font-size: 14px; }
   .desk-actions kbd, .desk-actions b, .key-hint, #controls-help { display: none; }
@@ -360,7 +362,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .enemy-ap-readout { margin-left: 6px; }
   .footer-note span:first-child { font-size: 9px; }
 }
-.card-cost small { white-space: nowrap; }
 .queue-count { width: auto; min-width: 24px; padding: 0 3px; border-radius: 3px; white-space: nowrap; }
 
 /* Committed actions stay visible while the next cards are being submitted. */
