@@ -1,0 +1,52 @@
+{
+  "source": "https://github.com/KayKit-Game-Assets/KayKit-Character-Pack-Adventures-1.0",
+  "revision": "672074b73ba276876a19e8816ecdc5241817ab47",
+  "license": "CC0-1.0",
+  "preparation": "Selected animation clips; mesh, texture and retained keyframe bytes unchanged.",
+  "models": [
+    {
+      "source": "Knight.glb",
+      "sourceBytes": 3659532,
+      "bytes": 866052,
+      "sourceSha256": "60428e3abc09ba83e595d256e3af8c5c976b46cdae599f0802fc82b4a3445168",
+      "sha256": "d1a3835a97c4c68126da2617d6123471051a37baeebda23f0f20055f19556d3e",
+      "sourceAnimationCount": 76,
+      "animations": [
+        "1H_Melee_Attack_Chop",
+        "1H_Melee_Attack_Slice_Horizontal",
+        "1H_Melee_Attack_Stab",
+        "Block",
+        "Block_Attack",
+        "Block_Hit",
+        "Blocking",
+        "Cheer",
+        "Death_A",
+        "Death_A_Pose",
+        "Hit_A",
+        "Idle"
+      ]
+    },
+    {
+      "source": "Barbarian.glb",
+      "sourceBytes": 3613268,
+      "bytes": 820124,
+      "sourceSha256": "cefc311a0e10c7858b6141f5ada7e33268727564fb8ac1347aab97d000669cc6",
+      "sha256": "c62dbc2f658d01bfcbc1d4f7b21b8a558dbdd498d1252854dfc42cdac12e8d5c",
+      "sourceAnimationCount": 76,
+      "animations": [
+        "1H_Melee_Attack_Chop",
+        "1H_Melee_Attack_Slice_Horizontal",
+        "1H_Melee_Attack_Stab",
+        "Block",
+        "Block_Attack",
+        "Block_Hit",
+        "Blocking",
+        "Cheer",
+        "Death_A",
+        "Death_A_Pose",
+        "Hit_A",
+        "Idle"
+      ]
+    }
+  ]
+}

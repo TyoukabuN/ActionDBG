@@ -368,3 +368,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 .queue-list li { flex: 0 0 auto; }
 .queue-list .queue-active { border-color: #bce8d2; background: #365b50; }
 .queue-list [data-state="pending"] { border-style: dashed; }
+.asset-status { position: absolute; left: 12px; bottom: 100px; max-width: calc(100% - 24px); padding: 5px 8px; color: #e2d3ae; background: #152626e8; border: 1px solid #bfa87855; font-size: 11px; pointer-events: none; }
+.asset-status[hidden] { display: none; }
+@media (max-width: 600px) { .asset-status { bottom: 76px; font-size: 10px; } }

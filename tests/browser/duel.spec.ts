@@ -8,6 +8,8 @@ async function open(page: Page, queue = false) {
   const now = new Date('2026-10-14T00:00:00Z');
   await page.clock.install({ time: now }); await page.clock.pauseAt(now);
   await page.goto('./');
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-player-model', 'ready');
+  await expect(page.getByTestId('canvas')).toHaveAttribute('data-enemy-model', 'ready');
   if (queue) await page.getByTestId('control-mode').click();
   await page.getByTestId('start').click();
   await phase(page, 'planning', 'player');

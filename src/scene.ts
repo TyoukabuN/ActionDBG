@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { ACTION_EFFECT_SECONDS, ACTION_RECOVERY_SECONDS, type CombatSnapshot } from './combat';
+import { ACTION_EFFECT_SECONDS, ACTION_RECOVERY_SECONDS, type CombatSnapshot, type Side } from './combat';
 import { CameraDirector } from './camera';
+import { CharacterVisual, type CharacterVariant } from './characters';
 
 type Fighter = {
   root: THREE.Group;
@@ -190,6 +191,16 @@ export class Arena {
   private shakeRemaining = 0;
   private shakeStrength = 0;
   private letterboxAmount = 0;
+  private readonly characters: Partial<Record<Side, CharacterVisual>> = {};
+  private readonly modelPositions = {
+    player: new THREE.Vector3(-2.35, 0, 0.5),
+    enemy: new THREE.Vector3(2.25, 0, -0.5),
+  };
+  private readonly feedbackPoint = new THREE.Vector3();
+  private readonly characterCues = { counterResolved: false, hit: 0, block: 0 };
+  private characterCameraBlend = 0;
+  private readonly characterCameraTarget = new THREE.Vector3();
+  private enemyTurnCancelled = false;
 
   constructor(private readonly canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -275,6 +286,73 @@ export class Arena {
     this.canvas.dataset.shadowLights = '1';
     this.canvas.dataset.dprCap = '2';
     this.resize();
+    this.loadCharacters();
+  }
+
+  private loadCharacters(): void {
+    const models: readonly [Side, CharacterVariant, string][] = [
+      ['player', 'knight', 'Knight'], ['enemy', 'barbarian', 'Barbarian'],
+    ];
+    for (const [side, variant, name] of models) {
+      this.canvas.dataset[`${side}Model`] = 'loading';
+      void CharacterVisual.load(`${import.meta.env.BASE_URL}assets/characters/kaykit/${name}.glb`, variant).then(visual => {
+        if (this.disposed) { visual.dispose(); return; }
+        const fighter = side === 'player' ? this.player : this.enemy;
+        for (const child of fighter.root.children) child.visible = false;
+        fighter.root.add(visual.object);
+        this.characters[side] = visual;
+        this.canvas.dataset[`${side}Model`] = 'ready';
+        this.canvas.dataset.materials = String(this.countMaterials());
+      }).catch(error => {
+        if (this.disposed) return;
+        this.canvas.dataset[`${side}Model`] = 'fallback';
+        console.warn(`Character model unavailable (${side}); keeping the procedural fighter.`, error);
+      });
+    }
+  }
+
+  private updateCharacters(snapshot: CombatSnapshot, delta: number, counterResolved: boolean): void {
+    const distance = Math.hypot(4.6, 1);
+    const terminal = snapshot.phase === 'victory' || snapshot.phase === 'defeat';
+    for (const side of ['player', 'enemy'] as const) {
+      const visual = this.characters[side];
+      if (!visual) continue;
+      const fighter = side === 'player' ? this.player : this.enemy;
+      const direction = side === 'player' ? 1 : -1;
+      if (terminal) fighter.root.position.copy(this.modelPositions[side]);
+      else {
+        let travel = 0;
+        const elapsed = snapshot.phaseElapsed;
+        if (side === 'player') {
+          if (snapshot.phase === 'acting' && snapshot.activeCard !== 'guard') {
+            travel = 2.85 * this.smoothstep(0.1, ACTION_EFFECT_SECONDS, elapsed)
+              * (1 - this.smoothstep(ACTION_EFFECT_SECONDS, ACTION_EFFECT_SECONDS + ACTION_RECOVERY_SECONDS, elapsed));
+          } else if (snapshot.phase === 'resolve' && counterResolved) {
+            travel = 1.2 * (1 - this.smoothstep(0.08, 0.65, elapsed));
+          }
+        } else {
+          if (snapshot.phase === 'telegraph') travel = 2.1 * this.smoothstep(0, snapshot.enemyAttack === 'heavy' ? 1.6 : 1.1, elapsed);
+          else if (snapshot.phase === 'counter') travel = 2.1;
+          else if (snapshot.phase === 'resolve') travel = counterResolved
+            ? 2.1 * (1 - this.smoothstep(0.08, 0.65, elapsed))
+            : 2.1 + 0.75 * this.smoothstep(0, 0.65, elapsed);
+          else if (snapshot.phase === 'turn-end' && snapshot.activeSide === 'enemy' && !this.enemyTurnCancelled) travel = 2.85 * (1 - this.smoothstep(0, 0.18, elapsed));
+        }
+        const recoil = this.recoilOffset(side === 'player' ? this.playerRecoil : this.enemyRecoil) * 0.18;
+        fighter.root.position.set(side === 'player' ? -2.35 : 2.25, 0, side === 'player' ? 0.5 : -0.5);
+        fighter.root.position.x += direction * (4.6 / distance * travel - recoil);
+        fighter.root.position.z -= direction * travel / distance;
+        this.modelPositions[side].copy(fighter.root.position);
+      }
+      fighter.root.rotation.y = Math.atan2(direction * 4.6, -direction);
+      this.characterCues.counterResolved = counterResolved
+        || (side === 'enemy' && snapshot.phase === 'turn-end' && this.enemyTurnCancelled);
+      this.characterCues.hit = side === 'player' ? this.playerRecoil : this.enemyRecoil;
+      this.characterCues.block = side === 'player' && this.sparks.activeCount > 0 ? this.ringRemaining / 0.24 : 0;
+      visual.update(snapshot, side, delta, this.characterCues);
+      this.canvas.dataset[`${side}Animation`] = visual.clipName;
+      this.canvas.dataset[`${side}AnimationTime`] = visual.poseTime.toFixed(3);
+    }
   }
 
   private countMaterials(): number {
@@ -513,20 +591,31 @@ export class Arena {
     enemy.root.position.x += this.recoilOffset(this.enemyRecoil) * 0.2;
     player.armor.emissiveIntensity = this.playerFlash * 2.25;
     enemy.armor.emissiveIntensity = this.enemyFlash * 2.25;
+    this.updateCharacters(snapshot, delta, counterResolved);
     this.updateFeedbackSprites();
     this.hitLight.intensity = Math.max(this.playerFlash, this.enemyFlash, this.ringRemaining / 0.24) * 2.7;
     const cameraPose = this.cameraDirector.update(snapshot, delta, this.reducedMotion.matches);
     const shake = this.reducedMotion.matches ? 0 : this.shakeStrength * this.shakeEnvelope();
     this.camera.position.set(...cameraPose.position);
+    this.cameraLookTarget.set(...cameraPose.target);
+    // KayKit's large helmets need more room than the capsule placeholder.
+    // Follow the approaching opponent without putting our own head over its hand.
+    const shoulder = this.characters.player && this.characters.enemy && !this.reducedMotion.matches
+      && ['overview', 'enemy-windup', 'decision', 'counter-window'].includes(cameraPose.id);
+    if (!snapshot.paused) this.characterCameraBlend = THREE.MathUtils.clamp(
+      this.characterCameraBlend + (shoulder ? 1 : -1) * delta / 0.18, 0, 1,
+    );
+    this.camera.position.y += this.characterCameraBlend * 0.25;
+    this.camera.position.z += this.characterCameraBlend * 1.4;
+    this.characterCameraTarget.set(this.enemy.root.position.x - 0.5, 1.55, this.enemy.root.position.z);
+    this.cameraLookTarget.lerp(this.characterCameraTarget, this.characterCameraBlend);
     // Portrait framing pulls back along the authored view axis so both fighters
     // remain readable without changing the cinematic shot or combat direction.
     const portraitScale = Math.max(1, Math.min(1.85, 1 / this.camera.aspect));
     if (portraitScale > 1) {
-      this.cameraLookTarget.set(...cameraPose.target);
       this.camera.position.sub(this.cameraLookTarget).multiplyScalar(portraitScale).add(this.cameraLookTarget);
     }
     this.camera.position.x += Math.sin(t * 49) * shake;
-    this.cameraLookTarget.set(...cameraPose.target);
     this.camera.lookAt(this.cameraLookTarget);
     this.camera.rotation.z += cameraPose.roll;
     if (this.camera.fov !== cameraPose.fov) {
@@ -534,7 +623,7 @@ export class Arena {
       this.camera.updateProjectionMatrix();
     }
     this.canvas.dataset.shot = cameraPose.id;
-    this.canvas.dataset.cameraPosition = cameraPose.position.map((value) => value.toFixed(2)).join(',');
+    this.canvas.dataset.cameraPosition = this.camera.position.toArray().map((value) => value.toFixed(2)).join(',');
     this.canvas.dataset.cameraRoll = cameraPose.roll.toFixed(3);
     this.canvas.dataset.letterbox = this.letterboxAmount.toFixed(3);
     this.canvas.dataset.renderOrder = 'scene,letterbox,actors,effects';
@@ -557,6 +646,7 @@ export class Arena {
     const counterWasResolved = this.counterResolvedPhase;
     if (snapshot.phase !== 'resolve') this.counterResolvedPhase = false;
     if (!previous) return;
+    if (snapshot.enemyTurn !== previous.enemyTurn) this.enemyTurnCancelled = false;
 
     // A reset can be triggered while paused or before any animation time has
     // advanced. Detect both visual-clock rewind and restored health explicitly.
@@ -569,7 +659,7 @@ export class Arena {
     const playerLoss = previous.playerHp - snapshot.playerHp;
     const counter = enemyLoss > 0 && previous.phase === 'counter'
       && (snapshot.phase === 'resolve' || snapshot.phase === 'victory');
-    if (counter && snapshot.phase === 'resolve') this.counterResolvedPhase = true;
+    if (counter && snapshot.phase === 'resolve') { this.counterResolvedPhase = true; this.enemyTurnCancelled = true; }
     if (enemyLoss > 0 && previous.phase === 'acting' && snapshot.phase !== 'acting'
       && (previous.activeCard === 'quick' || previous.activeCard === 'heavy')) {
       this.playerAttackRecovery = 0.24;
@@ -577,11 +667,15 @@ export class Arena {
     }
     if (enemyLoss > 0) {
       this.triggerHit(this.enemy, this.enemyDamageLabel, counter ? `反击  −${enemyLoss}` : `−${enemyLoss}`, counter ? '#9ef0d6' : '#ffe7bd', 0.28);
-      this.blood.trigger(new THREE.Vector3(this.enemy.root.position.x - 0.28, 1.38, this.enemy.root.position.z + 0.28), -1);
+      if (this.characters.enemy) this.characters.enemy.contactPosition(this.feedbackPoint, 'body');
+      else this.feedbackPoint.set(this.enemy.root.position.x - 0.28, 1.38, this.enemy.root.position.z + 0.28);
+      this.blood.trigger(this.feedbackPoint, -1);
     }
     if (playerLoss > 0) {
       this.triggerHit(this.player, this.playerDamageLabel, `−${playerLoss}`, '#ffb4a3', 0.4);
-      this.blood.trigger(new THREE.Vector3(this.player.root.position.x + 0.32, 1.38, this.player.root.position.z + 0.3), 1);
+      if (this.characters.player) this.characters.player.contactPosition(this.feedbackPoint, 'body');
+      else this.feedbackPoint.set(this.player.root.position.x + 0.32, 1.38, this.player.root.position.z + 0.3);
+      this.blood.trigger(this.feedbackPoint, 1);
     }
 
     const guardConsumed = previous.phase === 'resolve' && previous.guard > snapshot.guard
@@ -590,11 +684,13 @@ export class Arena {
     if (guardConsumed && playerLoss === 0) {
       this.showFeedback(this.playerDamageLabel, '格挡', '#a9eee0', this.player.root.position.x, this.player.root.position.z);
       this.ringRemaining = 0.24;
-      this.contactRing.position.set(-0.55, 1.18, 0.3);
+      if (this.characters.player) this.characters.player.contactPosition(this.feedbackPoint, 'shield');
+      else this.feedbackPoint.set(-0.55, 1.18, 0.3);
+      this.contactRing.position.copy(this.feedbackPoint);
       this.contactRing.material.color.set('#88e2d3');
       this.shakeStrength = 0.018;
       this.shakeRemaining = 0.12;
-      this.sparks.trigger(new THREE.Vector3(-0.55, 1.32, 0.42));
+      this.sparks.trigger(this.feedbackPoint);
     }
     if (counter) {
       this.counterPose = 0.42;
@@ -676,6 +772,8 @@ export class Arena {
     this.blood.clear();
     this.sparks.clear();
     this.letterboxAmount = 0;
+    this.characterCameraBlend = 0;
+    this.enemyTurnCancelled = false;
   }
 
   private updateLetterbox(snapshot: CombatSnapshot, delta: number): void {
@@ -785,6 +883,10 @@ export class Arena {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    // Loaded actors detach before the fallback scene traversal; each owner
+    // releases its own resources, including textures and bone textures.
+    this.characters.player?.dispose();
+    this.characters.enemy?.dispose();
     this.scene.traverse((object) => {
       const mesh = object as THREE.Mesh;
       if (mesh.geometry) mesh.geometry.dispose();

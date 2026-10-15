@@ -17,17 +17,18 @@ root.innerHTML = `
 
     <section class="arena-layout" aria-label="战斗竞技场">
       <div class="scene-frame">
-        <canvas id="canvas" data-testid="canvas" aria-label="三维剑术对决"></canvas>
+        <canvas id="canvas" data-testid="canvas" aria-label="三维近战对决"></canvas>
+        <div class="asset-status" id="character-status" data-testid="character-status" role="status">角色载入中…</div>
         <div class="scene-shade"></div>
         <div class="scene-topline"><span class="live-dot"></span><span id="turn-owner" data-testid="turn-owner">准备就绪</span><span class="shot-name" id="shot-name">开场镜头</span><span class="round-chip">回合 <b id="round">01</b></span></div>
         <div class="fighters-hud">
           <div class="fighter-card player-card">
-            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>挑战者</b><small>海岸守卫</small></div></div>
+            <div class="fighter-id"><span class="fighter-sigil">✦</span><div><b>挑战者</b><small>海岸骑士</small></div></div>
             <div class="hp-line"><span>生命</span><strong id="player-hp">10 / 10</strong></div><div class="hp-track"><i id="player-bar"></i></div>
           </div>
           <div class="intent-card" id="intent-card"><span class="intent-label">敌方意图</span><b id="intent">等待挑战者</b><small id="intent-detail">进入竞技场开始战斗</small></div>
           <div class="fighter-card enemy-card">
-            <div class="fighter-id"><span class="enemy-sigil">◆</span><div><b>决斗者</b><small>赤门老兵</small></div></div>
+            <div class="fighter-id"><span class="enemy-sigil">◆</span><div><b>决斗者</b><small>赤门蛮族</small></div></div>
             <div class="hp-line"><span>生命</span><strong id="enemy-hp">12 / 12</strong></div><div class="hp-track enemy-track"><i id="enemy-bar"></i></div>
           </div>
         </div>
@@ -148,6 +149,14 @@ function showTerminal(win: boolean) {
 }
 function drawArena(snapshot: CombatSnapshot, realSeconds: number) {
   arena?.render(snapshot, realSeconds);
+  const canvas = $('#canvas');
+  const playerModel = canvas.dataset.playerModel;
+  const enemyModel = canvas.dataset.enemyModel;
+  const status = $('#character-status');
+  status.hidden = !arena || (playerModel === 'ready' && enemyModel === 'ready');
+  status.textContent = playerModel === 'fallback' || enemyModel === 'fallback'
+    ? '部分角色载入失败，使用简化外观继续对决。'
+    : '角色载入中…可先开始对决';
   const label = SHOT_NAMES[$('#canvas').dataset.shot ?? 'overview'] ?? '战斗镜头';
   if ($('#shot-name').textContent !== label) $('#shot-name').textContent = label;
 }
