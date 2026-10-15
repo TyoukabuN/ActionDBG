@@ -64,6 +64,9 @@ Project-local skills live in `.agents/skills/`. Read the actual instructions rat
 | Source-backed explanation of a technical flow | `technical-flow-teacher` |
 | Explicit DeepSeek provider setup or switching | `deepseek-codex-native` |
 | Reddit/GitHub research and evidence-based project reviews | `community-research` |
+| Card performance, blocking, storyboards, shot design, and camera continuity | `cinematic-director`, adapted to real-time 3D as described below |
+
+For card performance and combat cinematography, read `.agents/skills/cinematic-director/SKILL.md` and only the references needed for the task. Apply its directing, blocking, shot planning, continuity, and editing guidance to real-time Three.js presentation. Every card may have its own performance combining animation, camera, effects, sound, or UI; not every card needs a cut or a long sequence. Keep presentation aligned with actual rules and effect timing. Do not automatically run its AI video production pipeline, apply generation-risk scores to runtime rendering, or introduce external generation services. The pinned source, license, and update procedure are recorded in `.agents/skills/cinematic-director-source.md`.
 
 Use [majidmanzarpour/threejs-game-skills](https://github.com/majidmanzarpour/threejs-game-skills) as the Three.js game development guidance. For broad game work, start with `threejs-game-director`; it routes to gameplay, graphics, UI, debugging, and QA specialists as needed. For narrow tasks, load only the relevant guidance.
 
