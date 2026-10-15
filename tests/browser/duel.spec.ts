@@ -27,7 +27,7 @@ test('player cards and side AP recovery lead directly to an enemy Counter withou
   await expect(page.getByTestId('turn-owner')).toHaveText('玩家回合');
   await page.getByTestId('card-quick').click();
   await phase(page, 'acting', 'player');
-  await page.clock.runFor(600);
+  await page.clock.runFor(850);
   await phase(page, 'planning', 'player');
   await expect(page.getByTestId('ap')).toHaveText('2');
   await expect(page.getByTestId('canvas')).toHaveAttribute('data-blood-particles', '18');
@@ -70,7 +70,7 @@ test('queue history retains native keyboard behavior, reserved cost and next-hit
   await page.getByTestId('card-heavy').click();
   await page.getByTestId('card-guard').click();
   await page.getByTestId('submit').click();
-  await page.clock.runFor(600);
+  await page.clock.runFor(850);
   await phase(page, 'turn-end', 'player');
   await expect(page.getByTestId('ap')).toHaveText('2');
   await page.clock.runFor(1800);
@@ -114,7 +114,7 @@ test('focused native buttons, focus pause and five restarts keep one turn state'
   await page.clock.runFor(1000);
   expect(await page.getByTestId('canvas').getAttribute('data-camera-position')).toBe(pose);
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-  await page.clock.runFor(350);
+  await page.clock.runFor(600);
   await phase(page, 'planning', 'player');
   await expect(page.getByTestId('ap')).toHaveText('1');
   await expect(page.locator('#enemy-hp')).toHaveText('9 / 12');
@@ -132,7 +132,7 @@ test('portrait touch plays its own turn, reacts on enemy turn and preserves spen
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
   const page = await context.newPage(); const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
-  await open(page); await page.getByTestId('card-guard').tap(); await page.clock.runFor(600);
+  await open(page); await page.getByTestId('card-guard').tap(); await page.clock.runFor(850);
   await page.getByTestId('submit').tap(); await page.clock.runFor(1900);
   await phase(page, 'counter', 'enemy');
   await expect(page.getByTestId('counter-threat-card')).toContainText('轻攻击');
@@ -163,8 +163,8 @@ test('turn strategy wins and victory button immediately retries', async ({ page 
   await open(page);
   for (let cycle = 1; cycle <= 3; cycle++) {
     await phase(page, 'planning', 'player');
-    if (cycle !== 2) { await page.getByTestId('card-heavy').click(); await page.clock.runFor(600); }
-    await page.getByTestId('card-quick').click(); await page.clock.runFor(600);
+    if (cycle !== 2) { await page.getByTestId('card-heavy').click(); await page.clock.runFor(850); }
+    await page.getByTestId('card-quick').click(); await page.clock.runFor(850);
     if (await page.getByTestId('phase').getAttribute('data-phase') === 'planning') await page.getByTestId('submit').click();
     await page.clock.runFor(cycle === 2 ? 2050 : 1650);
     if (cycle !== 2) {
@@ -192,4 +192,88 @@ test('idle turns lose and defeat button immediately retries', async ({ page }) =
   await page.getByTestId('start').click();
   await phase(page, 'planning', 'player');
   await expect(page.locator('#player-hp')).toHaveText('10 / 10');
+});
+
+
+for (const portrait of [false, true]) {
+  test(`continuous card input queues performances without interrupting the active card (${portrait ? 'portrait touch' : 'desktop'})`, async ({ browser }) => {
+    const context = await browser.newContext({ viewport: portrait ? { width: 390, height: 844 } : { width: 1280, height: 800 }, isMobile: portrait, hasTouch: portrait });
+    const page = await context.newPage();
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    await open(page);
+    const activate = async (id: string) => portrait ? page.getByTestId(id).tap() : page.getByTestId(id).click();
+    if (portrait) await activate('card-quick'); else await page.keyboard.press('1');
+    await page.clock.runFor(200);
+    const camera = await page.getByTestId('canvas').getAttribute('data-camera-position');
+    const timer = await page.getByTestId('timer').textContent();
+    await expect(page.getByTestId('card-heavy')).toBeEnabled();
+    await activate('card-heavy');
+    await expect(page.getByTestId('ap')).toHaveText('0');
+    await expect(page.getByTestId('queue').locator('[data-state="active"]')).toContainText('快斩');
+    await expect(page.getByTestId('queue').locator('[data-state="pending"]')).toContainText('重斩');
+    await expect(page.getByTestId('card-quick')).toBeDisabled();
+    await expect(page.getByTestId('card-heavy')).toBeDisabled();
+    await expect(page.getByTestId('card-guard')).toBeDisabled();
+    expect(await page.getByTestId('canvas').getAttribute('data-camera-position')).toBe(camera);
+    await expect(page.getByTestId('canvas')).toHaveAttribute('data-shot', 'quick-strike');
+    await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
+    if (portrait) {
+      const actionButton = await page.getByTestId('submit').boundingBox();
+      expect(actionButton!.height).toBeGreaterThanOrEqual(44);
+      expect(actionButton!.y + actionButton!.height).toBeLessThanOrEqual(844);
+    }
+    await page.screenshot({ path: `test-results/continuous-queue-${portrait ? 'portrait' : 'desktop'}.png` });
+    await page.clock.runFor(400);
+    await expect(page.locator('#enemy-hp')).toHaveText('11 / 12');
+    await expect(page.getByTestId('queue').locator('[data-state="active"]')).toContainText('快斩');
+    await expect(page.getByTestId('queue').locator('[data-state="active"]')).toContainText('收势');
+    await expect(page.getByTestId('timer')).toHaveText(timer!);
+    await page.clock.runFor(250);
+    await phase(page, 'acting', 'player');
+    await expect(page.getByTestId('queue').locator('[data-state="active"]')).toContainText('重斩');
+    await expect(page.getByTestId('queue').locator('[data-state="pending"]')).toHaveCount(0);
+    await expect(page.locator('#enemy-hp')).toHaveText('11 / 12');
+    await page.clock.runFor(550);
+    await expect(page.locator('#enemy-hp')).toHaveText('8 / 12');
+    await expect(page.getByTestId('ap')).toHaveText('0');
+    await page.clock.runFor(250);
+    await phase(page, 'turn-end', 'player');
+    await expect(page.getByTestId('ap')).toHaveText('0');
+    await page.clock.runFor(500);
+    await phase(page, 'telegraph', 'enemy');
+    await expect(page.getByTestId('ap')).toHaveText('3');
+    expect(errors).toEqual([]);
+    await context.close();
+  });
+}
+
+test('end input during an action drains work; pause and restart clear a pending queue', async ({ page }) => {
+  await open(page);
+  await page.getByTestId('card-quick').click();
+  await page.clock.runFor(200);
+  await expect(page.getByTestId('submit')).toBeEnabled();
+  await page.getByTestId('submit').click();
+  await phase(page, 'acting', 'player');
+  await expect(page.getByTestId('card-guard')).toBeDisabled();
+  await expect(page.getByTestId('ap')).toHaveText('2');
+  await page.clock.runFor(650);
+  await phase(page, 'turn-end', 'player');
+  await expect(page.locator('#enemy-hp')).toHaveText('11 / 12');
+  await expect(page.getByTestId('ap')).toHaveText('2');
+  await page.getByTestId('restart').click();
+  await page.keyboard.press('1');
+  await page.keyboard.press('2');
+  await expect(page.getByTestId('queue').locator('[data-state="pending"]')).toHaveCount(1);
+  await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+  await page.clock.runFor(1000);
+  await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
+  await expect(page.getByTestId('queue').locator('[data-state="pending"]')).toHaveCount(1);
+  await page.getByTestId('restart').click();
+  await phase(page, 'planning', 'player');
+  await expect(page.getByTestId('queue').locator('[data-state]')).toHaveCount(0);
+  await expect(page.getByTestId('ap')).toHaveText('3');
+  await expect(page.locator('#enemy-hp')).toHaveText('12 / 12');
 });

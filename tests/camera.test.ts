@@ -6,6 +6,7 @@ function snapshot(overrides: Partial<CombatSnapshot> = {}): CombatSnapshot {
   return {
     controlMode: 'qte', phase: 'planning', round: 1, playerHp: 10, enemyHp: 12,
     activeSide: 'player', playerTurn: 1, enemyTurn: 0, enemyAp: 3, enemyMaxAp: 3, enemyGuard: 0, pendingEnemyCard: null, playerTurnSeconds: 4, lastRecoverySide: null, ap: 3, maxAp: 3, remaining: 4, queue: [], committed: [], activeCard: null,
+    playerInputOpen: true, planningRemaining: 4, pendingActions: [], actionResolved: false,
     guard: 0, enemyAttack: 'light', enemyDamage: 2, visualTime: 0, phaseElapsed: 0,
     paused: false, log: [], cooldowns: { quick: 0, heavy: 0, guard: 0, counter: 0 },
     ...overrides,
@@ -63,7 +64,7 @@ describe('CameraDirector', () => {
     expect(director.current.id).toBe('enemy-windup');
   });
 
-  it('lets a newly played card interrupt the previous impact hold', () => {
+  it('lets the next executing card replace a completed action impact hold', () => {
     const director = new CameraDirector();
     settle(director, snapshot({ phase: 'acting', activeCard: 'heavy', visualTime: 1 }));
     director.update(snapshot({ phase: 'planning', enemyHp: 9, visualTime: 2 }), .016);

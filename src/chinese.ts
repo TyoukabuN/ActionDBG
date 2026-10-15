@@ -29,6 +29,8 @@ export function chineseText(text: string): string {
     'Only Counter is available during the counter phase.': '反击阶段只能使用反击。',
     'Counter is only available during the counter phase.': '仅在反击阶段可用。',
     'Not enough action points.': '行动点不足。',
+    'Card submission is closed.': '出牌已结束，等待队列完成。',
+    'Card is already committed this turn.': '本回合已提交这张牌。',
   };
   if (exact[text]) return exact[text];
   let match = text.match(/^On cooldown until round (\d+)\.$/);

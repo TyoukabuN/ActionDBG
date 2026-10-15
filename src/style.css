@@ -303,7 +303,7 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
   .brand { letter-spacing: .04em; gap: 5px; }
   .icon-button { min-height: 44px; font-size: 11px; padding: 6px 8px; letter-spacing: 0; }
   .arena-layout { flex: none; gap: 4px; padding: 6px 0 0; }
-  .scene-frame { height: clamp(290px, calc(100svh - 360px), 560px); min-height: 290px; }
+  .scene-frame { height: clamp(290px, calc(100svh - 520px), 560px); min-height: 290px; }
   .scene-topline { top: 7px; left: 8px; right: 8px; letter-spacing: 0; }
   .fighters-hud { top: 34px; left: 6px; right: 6px; gap: 5px; }
   .fighter-card { padding: 5px 7px; }
@@ -362,3 +362,9 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px soli
 }
 .card-cost small { white-space: nowrap; }
 .queue-count { width: auto; min-width: 24px; padding: 0 3px; border-radius: 3px; white-space: nowrap; }
+
+/* Committed actions stay visible while the next cards are being submitted. */
+.queue-list { overflow-x: auto; }
+.queue-list li { flex: 0 0 auto; }
+.queue-list .queue-active { border-color: #bce8d2; background: #365b50; }
+.queue-list [data-state="pending"] { border-style: dashed; }

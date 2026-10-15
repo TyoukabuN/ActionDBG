@@ -80,7 +80,8 @@ export class CameraDirector {
 
     if (previous && snapshot.phase === 'acting'
       && (previous.phase !== 'acting' || previous.activeCard !== snapshot.activeCard)) {
-      // A new button press takes priority over the previous strike's hold.
+      // Only the next executing action replaces the previous strike's hold.
+      // Appending pending cards leaves activeCard and this shot unchanged.
       this.heldShot = null;
       this.holdRemaining = 0;
     }

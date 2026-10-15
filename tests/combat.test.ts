@@ -9,7 +9,7 @@ function start(options: CombatOptions = {}, mode: 'qte' | 'queue' = 'qte'): Comb
   const combat = new Combat(mode, options); combat.start(); return combat;
 }
 function play(combat: Combat, card: CardId): void {
-  expect(combat.playCard(card)).toBe(true); combat.tick(.55);
+  expect(combat.playCard(card)).toBe(true); combat.tick(.79);
 }
 function enemyTurn(combat: Combat): void {
   if (combat.snapshot().phase === 'planning') combat.skip();
@@ -21,6 +21,112 @@ function nextPlayer(combat: Combat): void {
 }
 
 describe('side-owned card turns', () => {
+  it('closes an open action through submit without interrupting it or charging rejected input', () => {
+    const combat = start();
+    combat.playCard('quick'); combat.tick(.2);
+    expect(combat.snapshot().playerInputOpen).toBe(true);
+    const before = combat.snapshot();
+    expect(combat.playCard('quick')).toBe(false);
+    expect(combat.playCard('counter')).toBe(false);
+    expect(combat.snapshot()).toEqual(before);
+    combat.submit();
+    expect(combat.snapshot()).toMatchObject({ phase: 'acting', phaseElapsed: .2, playerInputOpen: false, ap: 2 });
+    expect(combat.playCard('guard')).toBe(false);
+    combat.tick(.35);
+    expect(combat.snapshot()).toMatchObject({ phase: 'acting', enemyHp: 11, actionResolved: true, ap: 2 });
+    combat.tick(.24);
+    expect(combat.snapshot()).toMatchObject({ phase: 'turn-end', ap: 2 });
+  });
+
+  it('queues QTE submissions in order, charges on submit, and resolves effects at the action beat', () => {
+    const combat = start();
+    combat.tick(1);
+    expect(combat.playCard('quick')).toBe(true);
+    expect(combat.snapshot()).toMatchObject({ phase: 'acting', ap: 2, enemyHp: 12, activeCard: 'quick', actionResolved: false, planningRemaining: 3 });
+    combat.tick(.2);
+    expect(combat.playCard('heavy')).toBe(true);
+    expect(combat.snapshot()).toMatchObject({ ap: 0, pendingActions: ['heavy'], playerInputOpen: false, enemyHp: 12 });
+    expect(combat.playCard('quick')).toBe(false);
+    expect(combat.playCard('guard')).toBe(false);
+    expect(combat.playCard('counter')).toBe(false);
+    combat.tick(.35);
+    expect(combat.snapshot()).toMatchObject({ enemyHp: 11, activeCard: 'quick', actionResolved: true, phaseElapsed: .55 });
+    combat.tick(.23);
+    expect(combat.snapshot().activeCard).toBe('quick');
+    combat.tick(.01);
+    expect(combat.snapshot()).toMatchObject({ activeCard: 'heavy', enemyHp: 11, actionResolved: false });
+    combat.tick(.55);
+    expect(combat.snapshot()).toMatchObject({ activeCard: 'heavy', enemyHp: 8, actionResolved: true });
+    combat.tick(.24);
+    expect(combat.snapshot()).toMatchObject({ phase: 'turn-end', activeSide: 'player', ap: 0, committed: [] });
+  });
+
+  it('closes input during acting, drains committed actions, then recovers player AP only at turn end', () => {
+    const combat = start();
+    combat.playCard('quick'); combat.playCard('guard'); combat.skip();
+    expect(combat.snapshot()).toMatchObject({ playerInputOpen: false, phase: 'acting', pendingActions: ['guard'], ap: 1 });
+    combat.tick(.79);
+    expect(combat.snapshot()).toMatchObject({ activeCard: 'guard', phase: 'acting', ap: 1, enemyHp: 11 });
+    combat.tick(.79);
+    expect(combat.snapshot()).toMatchObject({ phase: 'turn-end', ap: 1, guard: 2 });
+    combat.tick(.45);
+    expect(combat.snapshot()).toMatchObject({ activeSide: 'enemy', ap: 3, lastRecoverySide: 'player' });
+  });
+
+  it('accepts a card during recovery without resetting the current action or repeating its effect', () => {
+    const combat = start(); combat.playCard('quick'); combat.tick(.6);
+    expect(combat.playCard('heavy')).toBe(true);
+    expect(combat.snapshot()).toMatchObject({ activeCard: 'quick', actionResolved: true, phaseElapsed: .6, enemyHp: 11, pendingActions: ['heavy'], ap: 0 });
+    combat.tick(.19);
+    expect(combat.snapshot()).toMatchObject({ activeCard: 'heavy', actionResolved: false, phaseElapsed: 0, enemyHp: 11 });
+    combat.tick(.55);
+    expect(combat.snapshot().enemyHp).toBe(8);
+    expect(combat.snapshot().log.filter(line => line.startsWith('Quick Strike deals'))).toHaveLength(1);
+  });
+
+  it('automatically closes input when no legal ordinary card remains and does not reopen mid-turn', () => {
+    const combat = start({ playerHand: ['quick'] });
+    expect(combat.playCard('quick')).toBe(true);
+    expect(combat.snapshot().playerInputOpen).toBe(false);
+    combat.tick(.55);
+    expect(combat.snapshot().enemyHp).toBe(11);
+    combat.tick(.24);
+    expect(combat.snapshot().phase).toBe('turn-end');
+    combat.tick(.45);
+    combat.tick(1.1); combat.tick(.65); combat.tick(.45);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', playerInputOpen: true });
+  });
+
+  it('freezes the planning budget through a queue and resumes the saved amount after it drains', () => {
+    const combat = start(); combat.tick(1); combat.playCard('quick'); combat.tick(.2);
+    expect(combat.snapshot().planningRemaining).toBeCloseTo(3);
+    combat.tick(.59);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', remaining: 3, planningRemaining: 3, playerInputOpen: true });
+  });
+
+  it('cancels queued actions on lethal damage and restart clears current and waiting actions', () => {
+    const lethal = start();
+    // Arrange a lethal multi-action queue without changing the public combat API.
+    (lethal as unknown as { enemyHp: number }).enemyHp = 1;
+    expect(lethal.playCard('quick')).toBe(true);
+    expect(lethal.playCard('heavy')).toBe(true);
+    lethal.tick(.55);
+    expect(lethal.snapshot()).toMatchObject({ phase: 'victory', pendingActions: [], committed: [], activeCard: null, ap: 0 });
+    expect(lethal.snapshot().log.some(line => line.includes('Heavy Strike deals'))).toBe(false);
+
+    const combat = start(); combat.playCard('quick'); combat.playCard('guard'); combat.setPaused(true);
+    const frozen = combat.snapshot(); combat.tick(1); expect(combat.snapshot()).toEqual(frozen);
+    expect(combat.playCard('heavy')).toBe(false);
+    combat.restart();
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', playerInputOpen: true, pendingActions: [], committed: [], activeCard: null, actionResolved: false, ap: 3 });
+  });
+
+  it('crosses effect and recovery boundaries exactly once for a large delta', () => {
+    const combat = start(); combat.playCard('quick'); combat.tick(1.58);
+    expect(combat.snapshot()).toMatchObject({ phase: 'planning', enemyHp: 11, activeCard: null, ap: 2 });
+    expect(combat.snapshot().log.filter(line => line.includes('Quick Strike deals'))).toHaveLength(1);
+  });
+
   it('starts player-first and restarts all side resources, counters and pending effects', () => {
     const combat = start();
     expect(CARDS.map(card => card.id)).toEqual(['quick', 'heavy', 'guard', 'counter']);
@@ -128,8 +234,8 @@ describe('side-owned card turns', () => {
     expect(combat.toggleCard('guard')).toBe(false);
     combat.submit(); combat.submit();
     expect(combat.snapshot()).toMatchObject({ phase: 'acting', ap: 0, committed: ['quick', 'heavy'] });
-    combat.tick(.55); expect(combat.snapshot()).toMatchObject({ enemyHp: 11, activeCard: 'heavy' });
-    combat.tick(.55); expect(combat.snapshot()).toMatchObject({ enemyHp: 8, phase: 'turn-end', ap: 0 });
+    combat.tick(.79); expect(combat.snapshot()).toMatchObject({ enemyHp: 11, activeCard: 'heavy' });
+    combat.tick(.79); expect(combat.snapshot()).toMatchObject({ enemyHp: 8, phase: 'turn-end', ap: 0 });
   });
 
   it('auto-submits queue and Counter previews on expiry without double spending', () => {
@@ -163,9 +269,10 @@ describe('side-owned card turns', () => {
   it('returns detached snapshots including the committed enemy card and bounds logs', () => {
     const combat = start(); enemyTurn(combat);
     const snapshot = combat.snapshot(); (snapshot.pendingEnemyCard as { damage: number }).damage = 99;
-    snapshot.cooldowns.counter = 99; snapshot.log.push('injected'); snapshot.queue.push('quick');
+    snapshot.cooldowns.counter = 99; snapshot.log.push('injected'); snapshot.queue.push('quick'); snapshot.pendingActions.push('heavy');
     expect(combat.snapshot().pendingEnemyCard!.damage).toBe(2);
     expect(combat.snapshot().queue).toEqual([]);
+    expect(combat.snapshot().pendingActions).toEqual([]);
     expect(combat.snapshot().cooldowns.counter).toBe(0);
     expect(combat.snapshot().log).not.toContain('injected');
   });

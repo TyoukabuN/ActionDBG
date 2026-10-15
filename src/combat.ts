@@ -79,11 +79,16 @@ export interface CombatSnapshot {
   paused: boolean;
   log: string[];
   cooldowns: Record<CardId, number>;
+  playerInputOpen: boolean;
+  planningRemaining: number;
+  pendingActions: CardId[];
+  actionResolved: boolean;
 }
 
 const CARD_BY_ID = Object.fromEntries(CARDS.map((card) => [card.id, card])) as Record<CardId, CardDefinition>;
 const MAX_LOG_ENTRIES = 16;
-const ACTION_BEAT_SECONDS = 0.55;
+export const ACTION_EFFECT_SECONDS = 0.55;
+export const ACTION_RECOVERY_SECONDS = 0.24;
 const RESOLVE_SECONDS = 0.65;
 const TURN_END_SECONDS = 0.45;
 const LIGHT_TELEGRAPH_SECONDS = 1.1;
@@ -142,6 +147,8 @@ export class Combat {
   private started = false;
   private planningDuration = PLAN_SECONDS;
   private savedPlanningBudget = 0;
+  private playerInputOpen = false;
+  private actionResolved = false;
 
   start(): void {
     this.reset();
@@ -168,6 +175,8 @@ export class Combat {
     this.remaining = this.playerTurnSeconds;
     this.planningDuration = this.playerTurnSeconds;
     this.savedPlanningBudget = 0;
+    this.playerInputOpen = this.firstSide === 'player';
+    this.actionResolved = false;
     this.queue = [];
     this.committed = [];
     this.activeCard = null;
@@ -183,7 +192,7 @@ export class Combat {
     this.enemyAttackCancelled = false;
     this.started = true;
     this.addLog('对决开始。');
-    if (this.firstSide === 'enemy') this.beginEnemyTurn();
+    if (this.firstSide === 'enemy') { this.playerInputOpen = false; this.beginEnemyTurn(); }
     else this.addLog('玩家回合 1。');
   }
 
@@ -239,7 +248,7 @@ export class Combat {
     return true;
   }
 
-  /** Immediately plays one available card in QTE mode. */
+  /** Commits one available card immediately; ordinary actions execute in order. */
   playCard(id: CardId): boolean {
     if (this.controlMode !== 'qte' || !this.started || this.paused || this.isTerminal()) return false;
     if (this.queue.length > 0 || !CARD_BY_ID[id] || this.availability(id) !== null) return false;
@@ -258,31 +267,48 @@ export class Combat {
       return true;
     }
 
-    if (this.phase !== 'planning' || id === 'counter') return false;
+    if ((this.phase !== 'planning' && this.phase !== 'acting') || id === 'counter' || !this.playerInputOpen) return false;
+    if (this.committed.includes(id)) return false;
+    if (this.phase === 'acting') {
+      this.commitOrdinaryCard(id);
+      this.committed.push(id);
+      this.addLog(`Committed: ${CARD_BY_ID[id].name}.`);
+      if (!this.hasLegalOrdinaryCard()) this.playerInputOpen = false;
+      return true;
+    }
     this.savedPlanningBudget = this.remaining;
-    this.ap -= CARD_BY_ID[id].cost;
-    this.committed = [id];
-    this.actionIndex = 0;
-    this.activeCard = id;
-    this.setPhase('acting', ACTION_BEAT_SECONDS);
+    this.commitOrdinaryCard(id);
+    this.committed = [id]; this.actionIndex = 0;
+    this.activeCard = id; this.actionResolved = false;
+    this.setPhase('acting', ACTION_EFFECT_SECONDS);
     this.addLog(`Committed: ${CARD_BY_ID[id].name}.`);
+    if (!this.hasLegalOrdinaryCard()) this.playerInputOpen = false;
     return true;
   }
 
   submit(): void {
     if (!this.started || this.paused || this.isTerminal()) return;
+    if (this.phase === 'acting' && this.activeSide === 'player') {
+      this.playerInputOpen = false;
+      this.addLog('Planning skipped.');
+      return;
+    }
     if (this.phase === 'planning') {
       if (this.queue.length === 0) {
         this.addLog('Planning skipped.');
         this.endTurn();
         return;
       }
+      this.savedPlanningBudget = this.remaining;
       this.committed = [...this.queue];
       this.ap -= this.committed.reduce((sum, id) => sum + CARD_BY_ID[id].cost, 0);
+      for (const id of this.committed) this.markCardUsed(id);
+      this.playerInputOpen = false;
       this.queue = [];
       this.actionIndex = 0;
       this.activeCard = this.committed[0] ?? null;
-      this.setPhase('acting', ACTION_BEAT_SECONDS);
+      this.setPhase('acting', ACTION_EFFECT_SECONDS);
+      this.actionResolved = false;
       this.addLog(`Committed: ${this.committed.map((id) => CARD_BY_ID[id].name).join(', ')}.`);
       return;
     }
@@ -309,8 +335,12 @@ export class Combat {
     if (!this.started || this.paused || this.isTerminal()) return;
     if (this.phase === 'planning') {
       this.queue = [];
+      this.playerInputOpen = false;
       this.addLog('Planning skipped.');
       this.endTurn();
+    } else if (this.phase === 'acting' && this.activeSide === 'player') {
+      this.playerInputOpen = false;
+      if (this.committed.length === 0) this.endTurn();
     } else if (this.phase === 'counter') {
       this.queue = [];
       this.skipCounter();
@@ -328,11 +358,14 @@ export class Combat {
     if (this.isTerminal()) return 'Combat has ended.';
     if (this.paused) return 'Combat is paused.';
     if (this.isOnCooldown(id)) return `冷却中，第 ${this.readyRound[id]} 个玩家回合可用。`;
-    if (this.phase !== 'planning' && this.phase !== 'counter') return 'Card selection is unavailable in this phase.';
+    if (this.phase !== 'planning' && this.phase !== 'acting' && this.phase !== 'counter') return 'Card selection is unavailable in this phase.';
     if (this.phase === 'planning' && this.activeSide !== 'player') return '敌人回合只能按触发条件反击。';
+    if (this.phase !== 'counter' && !this.playerInputOpen) return 'Card submission is closed.';
     if (this.phase === 'counter' && id !== 'counter') return 'Only Counter is available during the counter phase.';
     if (this.phase === 'planning' && id === 'counter') return 'Counter is only available during the counter phase.';
+    if (this.phase === 'acting' && id === 'counter') return 'Counter is only available during the counter phase.';
     if (this.queue.includes(id)) return null;
+    if (this.committed.includes(id)) return 'Card is already committed this turn.';
     const reserved = this.queue.reduce((sum, cardId) => sum + CARD_BY_ID[cardId].cost, 0);
     if (reserved + CARD_BY_ID[id].cost > this.ap) return 'Not enough action points.';
     return null;
@@ -374,6 +407,10 @@ export class Combat {
       paused: this.paused,
       log: [...this.log],
       cooldowns,
+      playerInputOpen: this.playerInputOpen,
+      planningRemaining: this.phase === 'acting' ? this.savedPlanningBudget : this.remaining,
+      pendingActions: this.phase === 'acting' ? this.committed.slice(this.actionIndex + 1) : [],
+      actionResolved: this.actionResolved,
     };
   }
 
@@ -381,7 +418,7 @@ export class Combat {
     switch (this.phase) {
       case 'telegraph': return this.enemyAttack === 'light' ? LIGHT_TELEGRAPH_SECONDS : HEAVY_TELEGRAPH_SECONDS;
       case 'planning': return this.playerTurnSeconds === 0 ? null : this.planningDuration;
-      case 'acting': return ACTION_BEAT_SECONDS;
+      case 'acting': return this.actionResolved ? ACTION_EFFECT_SECONDS + ACTION_RECOVERY_SECONDS : ACTION_EFFECT_SECONDS;
       case 'counter': return COUNTER_SECONDS;
       case 'resolve': return RESOLVE_SECONDS;
       case 'turn-end': return TURN_END_SECONDS;
@@ -406,7 +443,8 @@ export class Combat {
         }
         break;
       case 'acting':
-        this.resolveActiveCard();
+        if (!this.actionResolved) this.resolveActiveCard();
+        else this.finishActiveAction();
         break;
       case 'counter':
         if (this.queue.includes('counter')) this.submit();
@@ -433,8 +471,7 @@ export class Combat {
       return;
     }
     this.activeCard = id;
-    this.usedRound[id] = this.playerTurn;
-    this.readyRound[id] = this.playerTurn + CARD_BY_ID[id].cooldownRounds + 1;
+    this.actionResolved = true;
     if (id === 'guard') {
       this.guard = 2;
       this.addLog('Guard is ready to reduce the next hit by 2.');
@@ -442,14 +479,19 @@ export class Combat {
       this.dealDamage('enemy', CARD_BY_ID[id].damage, CARD_BY_ID[id].name);
       if (this.isTerminal()) return;
     }
+    // Keep phaseElapsed monotonic across the effect and recovery boundaries.
+  }
+
+  private finishActiveAction(): void {
+    this.actionResolved = false;
     this.actionIndex++;
     if (this.actionIndex < this.committed.length) {
       this.activeCard = this.committed[this.actionIndex];
-      this.setPhase('acting', ACTION_BEAT_SECONDS);
+      this.setPhase('acting', ACTION_EFFECT_SECONDS);
     } else {
       this.committed = [];
       this.activeCard = null;
-      if (this.controlMode === 'qte' && this.canResumePlanning()) {
+      if (this.controlMode === 'qte' && this.playerInputOpen && this.canResumePlanning()) {
         this.setPhase('planning', this.savedPlanningBudget);
       } else {
         this.endTurn();
@@ -460,6 +502,7 @@ export class Combat {
   private endTurn(): void {
     if (this.isTerminal() || this.phase === 'turn-end') return;
     this.queue = []; this.committed = []; this.activeCard = null;
+    this.playerInputOpen = false; this.actionResolved = false;
     this.setPhase('turn-end', TURN_END_SECONDS);
   }
 
@@ -480,6 +523,7 @@ export class Combat {
       this.playerTurn++;
       this.round = this.playerTurn;
       this.setPhase('planning', this.playerTurnSeconds);
+      this.playerInputOpen = true;
       this.addLog(`玩家回合 ${this.playerTurn}。`);
     }
   }
@@ -557,6 +601,8 @@ export class Combat {
     this.activeCard = null;
     this.pendingEnemyCard = null;
     this.paused = false;
+    this.playerInputOpen = false;
+    this.actionResolved = false;
     this.addLog(result === 'victory' ? 'Victory.' : 'Defeat.');
   }
 
@@ -572,6 +618,21 @@ export class Combat {
     return (['quick', 'heavy', 'guard'] as const).some((id) =>
       this.playerHand.has(id) && !this.isOnCooldown(id) && this.ap >= CARD_BY_ID[id].cost,
     );
+  }
+
+  private commitOrdinaryCard(id: CardId): void {
+    this.ap -= CARD_BY_ID[id].cost;
+    this.markCardUsed(id);
+  }
+
+  private markCardUsed(id: CardId): void {
+    this.usedRound[id] = this.playerTurn;
+    this.readyRound[id] = this.playerTurn + CARD_BY_ID[id].cooldownRounds + 1;
+  }
+
+  private hasLegalOrdinaryCard(): boolean {
+    return (['quick', 'heavy', 'guard'] as const).some(id => this.playerHand.has(id) && !this.isOnCooldown(id)
+      && !this.committed.includes(id) && this.ap >= CARD_BY_ID[id].cost);
   }
 
   private isOnCooldown(id: CardId): boolean {

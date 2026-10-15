@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { CombatSnapshot } from './combat';
+import { ACTION_EFFECT_SECONDS, ACTION_RECOVERY_SECONDS, type CombatSnapshot } from './combat';
 import { CameraDirector } from './camera';
 
 type Fighter = {
@@ -421,7 +421,7 @@ export class Arena {
       enemy.sword.rotation.z = -0.2 - wind * 1.1;
       enemy.root.position.x += Math.sin(t * 1.2) * 0.06;
     } else if (snapshot.phase === 'acting') {
-      const progress = Math.min(1, snapshot.phaseElapsed / 0.55);
+      const progress = Math.min(1, snapshot.phaseElapsed / ACTION_EFFECT_SECONDS);
       const strike = this.strikeCurve(progress);
       if (snapshot.activeCard === 'guard') {
         const lift = this.smoothstep(0.12, 0.78, progress);
@@ -436,6 +436,15 @@ export class Arena {
         player.sword.rotation.z = -0.2 - anticipation * 0.8 - strike * 1.05;
       } else {
         player.root.position.x = -2.35;
+      }
+      // Recovery belongs to this action, so newly submitted cards cannot
+      // interrupt its pose. Combat owns both the effect and finish boundaries.
+      if (snapshot.actionResolved && snapshot.activeCard !== 'guard') {
+        const weight = 0.88 * (1 - this.smoothstep(ACTION_EFFECT_SECONDS, ACTION_EFFECT_SECONDS + ACTION_RECOVERY_SECONDS, snapshot.phaseElapsed));
+        player.root.position.x = -2.35 + weight * 0.92;
+        player.torso.rotation.z = -weight * (snapshot.activeCard === 'heavy' ? 0.68 : 0.4);
+        player.rightArm.rotation.x = -weight * 0.52;
+        player.sword.rotation.z = -0.2 - weight * 1.05;
       }
     } else {
       player.root.position.x = -2.35;
@@ -561,7 +570,7 @@ export class Arena {
     const counter = enemyLoss > 0 && previous.phase === 'counter'
       && (snapshot.phase === 'resolve' || snapshot.phase === 'victory');
     if (counter && snapshot.phase === 'resolve') this.counterResolvedPhase = true;
-    if (enemyLoss > 0 && previous.phase === 'acting'
+    if (enemyLoss > 0 && previous.phase === 'acting' && snapshot.phase !== 'acting'
       && (previous.activeCard === 'quick' || previous.activeCard === 'heavy')) {
       this.playerAttackRecovery = 0.24;
       this.playerRecoveryCard = previous.activeCard;
